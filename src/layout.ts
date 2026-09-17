@@ -196,7 +196,16 @@ export const AREAS: Area[] = [
 export interface ConveyorLine {
   id: string; name: string; points: [number, number][]; h: number; spurs: { at: number; to: [number, number] }[]
   kind: 'belt' | 'roller'; carries: 'tote' | 'box'
+  /** Distance along the line after which boxes carry a shipping label (downstream of print-and-apply). */
+  labelAfter?: number
 }
+
+/** SLAM stations on the SLAM line, one downstream of each pack merge: in-line scale, scan tunnel,
+ *  print-and-apply, verify scanner, reject lane. `x` is the tunnel position. */
+export const SLAM_STATIONS: { id: string; x: number }[] = [{ id: 'SLAM-1', x: -50 }, { id: 'SLAM-2', x: 38 }]
+
+/** Put walls for multi-item rebin: 8 walls in two rows of 4 in the rebin zone, each 8 slots wide × 6 high. */
+export const PUT_WALLS = { rows: 2, perRow: 4, w: 3.0, h: 2.2, d: 0.6, cols: 8, tiers: 6, zRows: [25.5, 33.0], x0: -55, pitch: 10 }
 
 /** Pack stations: two rows of 12 per pack zone facing a packed-box roller line at `lineZ`, which runs east then
  *  south to the SLAM line. Station pitch 3 m, bench 1.8 × 0.9 m at 0.9 m. */
@@ -210,12 +219,15 @@ export const PACK_ZONES: { zone: string; type: 'single' | 'multi'; firstId: numb
 export const CONVEYORS: ConveyorLine[] = [
   { id: 'CV-PACK-S', name: 'Pack singles box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-107, PACK.lineZ], [-62, PACK.lineZ], [-62, 40.5]] },
   { id: 'CV-PACK-M', name: 'Pack multis box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-17, PACK.lineZ], [28, PACK.lineZ], [28, 40.5]] },
+  // SLAM line: east along z 41 through both SLAM stations, then south into the sort zone and west along z 48
+  // past the carrier sort positions. Boxes are labelled 3 m past the first print-and-apply they meet.
+  { id: 'CV-SLAM', name: 'SLAM line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-108, 41], [48, 41], [48, 48], [-65, 48]], labelAfter: 61 },
   {
     id: 'CV-TAKE', name: 'Takeaway conveyor', kind: 'belt', carries: 'tote', points: [[50, 18], [-118, 18]], h: 0.85,
     spurs: [
       { at: 40, to: [40, 25] },   // gift wrap
       { at: 5, to: [5, 25] },     // pack multis
-      { at: -40, to: [-40, 25] }, // rebin
+      { at: -40, to: [-40, 23.5] }, // rebin, stops short of put wall RB-02
       { at: -85, to: [-85, 25] }, // pack singles
     ],
   },

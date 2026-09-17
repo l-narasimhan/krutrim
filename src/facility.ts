@@ -3,7 +3,7 @@
 import { rng, rand, randInt, pick, chance } from './rng'
 import {
   HALL as HALL_SPEC, HALL_X0, HALL_Z0, DOOR, MODULES, AREAS, RACK as RACK_LAYOUT, RACK_ROW_PITCH, SHELF as SHELF_LAYOUT, SHELF_ROW_PITCH,
-  doors as layoutDoors, PACK, PACK_ZONES, type StorageModule, type Area,
+  doors as layoutDoors, PACK, PACK_ZONES, PUT_WALLS, SLAM_STATIONS, type StorageModule, type Area,
 } from './layout'
 
 export { MODULES, AREAS, RACK_ROW_PITCH, SHELF_ROW_PITCH, DOOR } from './layout'
@@ -113,11 +113,15 @@ export interface Station extends Base {
   kind: 'station'; number: number; zone: string; type: 'single' | 'multi'; associate: string | null
   rate: number; queue: number; packedToday: number; state: 'PACKING' | 'IDLE' | 'OFFLINE'
 }
+export interface PutWall extends Base {
+  kind: 'wall'; number: number; slots: number; filled: number; ordersOpen: number; ordersComplete: number; lit: boolean[]
+}
+export interface Slam extends Base { kind: 'slam'; number: number; rate: number; rejects: number; labelled: number; state: 'RUNNING' | 'STOPPED' }
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone | Station
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -140,7 +144,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -202,8 +206,29 @@ export function buildFacility(): Facility {
     }
   }
 
+  // Put walls RB-01…08 in the rebin zone; each slot lit when an order is in progress there.
+  const PW = PUT_WALLS
+  for (let r = 0; r < PW.rows; r++) for (let i = 0; i < PW.perRow; i++) {
+    const n = r * PW.perRow + i + 1
+    const slots = PW.cols * PW.tiers
+    const lit = Array.from({ length: slots }, () => chance(0.45))
+    const filled = lit.filter(Boolean).length
+    const wall: PutWall = {
+      kind: 'wall', id: `RB-${pad(n, 2)}`, number: n, slots, filled, ordersOpen: filled, ordersComplete: randInt(80, 400), lit,
+      center: [PW.x0 + i * PW.pitch, PW.h / 2, PW.zRows[r]], size: [PW.w + 0.2, PW.h + 0.1, PW.d + 0.2], face: [0, 0, r === 0 ? 1 : -1],
+    }
+    walls.push(wall); byId.set(wall.id, wall)
+  }
+  // SLAM stations on the SLAM line.
+  for (const st of SLAM_STATIONS) {
+    const n = Number(st.id.split('-')[1])
+    const slam: Slam = { kind: 'slam', id: st.id, number: n, rate: randInt(1400, 2100), rejects: randInt(3, 30), labelled: randInt(6000, 14000), state: 'RUNNING',
+      center: [st.x + 2, 1.0, 41], size: [12, 2.2, 3], face: [0, 0, 1] }
+    slams.push(slam); byId.set(slam.id, slam)
+  }
+
   void rand
-  return { bays, bins, faces, docks, zones, stations, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, stations, walls, slams, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.

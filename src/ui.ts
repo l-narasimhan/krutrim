@@ -1,4 +1,4 @@
-import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
@@ -28,7 +28,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -134,6 +134,10 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="${e.sku ? 'ok' : ''}">● ${e.sku ? 'STOCKED' : 'EMPTY'}</span></h4><dl><dt>Pick face</dt><dd>${FIT_NAME[e.fit]}</dd><dt>Product</dt><dd>${e.product ?? '—'}</dd><dt>SKU</dt><dd>${e.sku ?? '—'}</dd><dt>Qty</dt><dd>${e.qty} / ${e.capacity} ea</dd><dt>Velocity</dt><dd>${e.velocity}</dd></dl><div class="hint">CLICK · SCAN FACE</div>`
     } else if (e.kind === 'station') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.state === 'PACKING' ? 'ok' : e.state === 'IDLE' ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Station</dt><dd>Pack ${e.type === 'single' ? 'singles' : 'multis'}</dd><dt>Associate</dt><dd>${e.associate ?? '—'}</dd><dt>Rate</dt><dd>${e.rate} UPH</dd><dt>Queue</dt><dd>${e.queue} totes</dd></dl><div class="hint">CLICK · INSPECT STATION</div>`
+    } else if (e.kind === 'wall') {
+      tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.filled} / ${e.slots} SLOTS</span></h4><dl><dt>Put wall</dt><dd>${e.slots} cubbies, put-to-light</dd><dt>Orders open</dt><dd>${e.ordersOpen}</dd><dt>Completed today</dt><dd>${e.ordersComplete}</dd></dl><div class="hint">CLICK · INSPECT WALL</div>`
+    } else if (e.kind === 'slam') {
+      tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.state}</span></h4><dl><dt>SLAM</dt><dd>scan · label · apply · manifest</dd><dt>Rate</dt><dd>${fmt(e.rate)} boxes/h</dd><dt>Rejects</dt><dd>${e.rejects} today</dd></dl><div class="hint">CLICK · INSPECT SLAM</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
     } else {
@@ -152,6 +156,8 @@ export class Console {
     else if (e.kind === 'bin') this.renderBin(e)
     else if (e.kind === 'face') this.renderFace(e)
     else if (e.kind === 'station') this.renderStation(e)
+    else if (e.kind === 'wall') this.renderWall(e)
+    else if (e.kind === 'slam') this.renderSlam(e)
     else if (e.kind === 'dock') this.renderDock(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
@@ -282,5 +288,31 @@ export class Console {
       <div class="sec"><label>Rate vs target</label><div class="barrow"><span>${e.rate} of ${target} UPH</span><b>${Math.round(e.rate / target * 100)}%</b></div><div class="bar${e.rate < target * 0.8 ? ' warn' : ''}"><i style="width:${Math.min(100, e.rate / target * 100)}%"></i></div></div>
       <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
+  }
+
+  private renderWall(e: PutWall) {
+    this.head('PUT WALL · REBIN', e.id, `${Math.round(e.filled / e.slots * 100)}% IN USE`, e.filled / e.slots > 0.85 ? 'warn' : 'ok')
+    const hist = this.history(e.id, 30, 12)
+    const grid = e.lit.map((on, i) => `<i class="cub${on ? ' on' : ''}" title="slot ${String(i + 1).padStart(2, '0')}"></i>`).join('')
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Zone</label><span>REBIN</span></div><div><label>Wall</label><span>${String(e.number).padStart(2, '0')} of 08</span></div><div><label>Induct side</label><span>${e.face[2] > 0 ? 'SOUTH' : 'NORTH'}</span></div></div>
+      <div class="sec"><label>Wall spec</label><div class="spec">Put wall 3.0 × 2.2 m, 8 × 6 cubbies at 375 × 365 mm · put-to-light indicator per cubby · induct from the takeaway spur, pack multis pull completed orders from the far side</div></div>
+      <div class="sec tiles"><div class="tile"><label>Orders open</label><b>${e.ordersOpen}</b></div><div class="tile"><label>Completed today</label><b>${e.ordersComplete}</b></div><div class="tile"><label>Slots in use</label><b>${e.filled}<span>/ ${e.slots}</span></b></div><div class="tile"><label>Avg items / order</label><b>3.4</b></div></div>
+      <div class="sec"><label>Cubbies · lit = order in progress</label><div class="cubbies">${grid}</div></div>
+      <div class="sec"><label>Orders completed per hour · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
+  }
+
+  private renderSlam(e: Slam) {
+    this.head('SLAM STATION', e.id, e.state, e.state === 'RUNNING' ? 'ok' : 'warn')
+    const hist = this.history(e.id, e.rate / 60, 8)
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Line</label><span>SLAM LINE · z 41</span></div><div><label>Feeds from</label><span>${e.number === 1 ? 'PACK SINGLES' : 'PACK MULTIS'} box line</span></div><div><label>Delivers to</label><span>MANUAL CARRIER SORT</span></div></div>
+      <div class="sec"><label>Station spec</label><div class="spec">In-line checkweigh scale · 5-sided camera scan tunnel · print-and-apply labeler with tamp arm, 4 × 6 in thermal labels · verify scanner and beacon · pneumatic divert to a gravity reject lane</div></div>
+      <div class="sec tiles"><div class="tile"><label>Rate</label><b>${fmt(e.rate)}<span>boxes/h</span></b></div><div class="tile"><label>Labelled today</label><b>${fmt(e.labelled)}</b></div><div class="tile"><label>Rejects today</label><b>${e.rejects}</b></div><div class="tile"><label>Reject rate</label><b>${(e.rejects / e.labelled * 100).toFixed(2)}<span>%</span></b></div></div>
+      <div class="sec"><label>Boxes per minute · 8 h</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#ffa62b')
   }
 }

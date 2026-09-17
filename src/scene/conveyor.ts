@@ -35,8 +35,9 @@ export class Conveyor {
   colliders: THREE.Box3[] = []
   private totes: THREE.InstancedMesh
   private boxes: THREE.InstancedMesh
+  private labels: THREE.InstancedMesh
   private boxSize: Float32Array
-  private lines: { path: Path; h: number; s: Float32Array; first: number; count: number; carries: 'tote' | 'box' }[] = []
+  private lines: { path: Path; h: number; s: Float32Array; first: number; count: number; carries: 'tote' | 'box'; labelAfter: number }[] = []
   private tmp = new THREE.Vector2()
 
   constructor(M: Mats) {
@@ -55,7 +56,7 @@ export class Conveyor {
         if (ri === 0) {
           const n = Math.floor(path.len / (line.carries === 'tote' ? 2.4 : 2.0))
           const first = line.carries === 'tote' ? toteTotal : boxTotal
-          this.lines.push({ path, h, s: new Float32Array(n).map((_, i) => i * (path.len / n) + rng() * 0.8), first, count: n, carries: line.carries })
+          this.lines.push({ path, h, s: new Float32Array(n).map((_, i) => i * (path.len / n) + rng() * 0.8), first, count: n, carries: line.carries, labelAfter: line.labelAfter ?? Infinity })
           if (line.carries === 'tote') toteTotal += n; else boxTotal += n
         }
       })
@@ -89,7 +90,10 @@ export class Conveyor {
       this.boxes.setColorAt(i, c.setHSL(0.08, 0.35, 0.45 + rng() * 0.12))
     }
     this.boxes.castShadow = true
-    this.group.add(this.totes, this.boxes)
+    // 4 × 6 in shipping labels on boxes that have passed print-and-apply.
+    this.labels = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.1, 0.15), new THREE.MeshStandardMaterial({ color: 0xf6f5f0, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }), Math.max(1, boxTotal))
+    this.labels.count = boxTotal
+    this.group.add(this.totes, this.boxes, this.labels)
     this.update(0)
   }
 
@@ -150,11 +154,14 @@ export class Conveyor {
         else {
           const k = (l.first + i) * 3, bs = this.boxSize
           setInstance(this.boxes, l.first + i, this.tmp.x, l.h + bs[k + 1] / 2 + 0.002, this.tmp.y, bs[k], bs[k + 1], bs[k + 2], 0, ry, 0)
+          const on = ((l.s[i] % l.path.len) + l.path.len) % l.path.len > l.labelAfter ? 1 : 0
+          setInstance(this.labels, l.first + i, this.tmp.x, l.h + bs[k + 1] + 0.004, this.tmp.y, on, on, on, -Math.PI / 2, 0, -ry)
         }
       }
     }
     this.totes.instanceMatrix.needsUpdate = true
     this.boxes.instanceMatrix.needsUpdate = true
+    this.labels.instanceMatrix.needsUpdate = true
   }
 }
 

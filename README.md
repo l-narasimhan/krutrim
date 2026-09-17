@@ -34,7 +34,8 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
   cargo tracks its load or unload progress.
 - **Takeaway conveyor and pack.** 168 m of 24 in belt conveyor along the south edge of storage with spurs into
   each pack zone; totes ride it continuously. 48 pack stations in two rows per pack zone, fully equipped and
-  inspectable, with roller box lines carrying packed boxes toward SLAM.
+  inspectable, with roller box lines carrying packed boxes to two SLAM stations (scale, scan tunnel,
+  print-and-apply, reject lane) and on into the sort zone. Eight put-to-light walls in rebin.
 - **Console.** KPI tiles, live event stream, inspector for bays, bins, docks and zones, focus search by
   location ID, fps / draw call / triangle stats.
 
