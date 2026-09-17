@@ -1,4 +1,4 @@
-import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Lane, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
@@ -28,7 +28,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.lanes.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -138,6 +138,8 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.filled} / ${e.slots} SLOTS</span></h4><dl><dt>Put wall</dt><dd>${e.slots} cubbies, put-to-light</dd><dt>Orders open</dt><dd>${e.ordersOpen}</dd><dt>Completed today</dt><dd>${e.ordersComplete}</dd></dl><div class="hint">CLICK · INSPECT WALL</div>`
     } else if (e.kind === 'slam') {
       tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.state}</span></h4><dl><dt>SLAM</dt><dd>scan · label · apply · manifest</dd><dt>Rate</dt><dd>${fmt(e.rate)} boxes/h</dd><dt>Rejects</dt><dd>${e.rejects} today</dd></dl><div class="hint">CLICK · INSPECT SLAM</div>`
+    } else if (e.kind === 'lane') {
+      tt.innerHTML = `<h4>${e.id} <span class="${e.state === 'OPEN' ? 'ok' : e.state === 'CLOSING' ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>${e.role === 'sort' ? 'Sort position' : 'Staging lane'}</dt><dd>${e.carrier} · ${e.door}</dd><dt>Cut-off</dt><dd>${e.cutoff}</dd><dt>Boxes</dt><dd>${fmt(e.units)}</dd>${e.role === 'stage' ? `<dt>Staged</dt><dd>${e.gaylords} gaylords · ${e.pallets} pallets</dd>` : ''}</dl><div class="hint">CLICK · INSPECT LANE</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
     } else {
@@ -158,6 +160,7 @@ export class Console {
     else if (e.kind === 'station') this.renderStation(e)
     else if (e.kind === 'wall') this.renderWall(e)
     else if (e.kind === 'slam') this.renderSlam(e)
+    else if (e.kind === 'lane') this.renderLane(e)
     else if (e.kind === 'dock') this.renderDock(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
@@ -312,6 +315,21 @@ export class Console {
       <div class="sec"><label>Station spec</label><div class="spec">In-line checkweigh scale · 5-sided camera scan tunnel · print-and-apply labeler with tamp arm, 4 × 6 in thermal labels · verify scanner and beacon · pneumatic divert to a gravity reject lane</div></div>
       <div class="sec tiles"><div class="tile"><label>Rate</label><b>${fmt(e.rate)}<span>boxes/h</span></b></div><div class="tile"><label>Labelled today</label><b>${fmt(e.labelled)}</b></div><div class="tile"><label>Rejects today</label><b>${e.rejects}</b></div><div class="tile"><label>Reject rate</label><b>${(e.rejects / e.labelled * 100).toFixed(2)}<span>%</span></b></div></div>
       <div class="sec"><label>Boxes per minute · 8 h</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#ffa62b')
+  }
+
+  private renderLane(e: Lane) {
+    const sort = e.role === 'sort'
+    this.head(sort ? 'CARRIER SORT POSITION' : 'OUTBOUND STAGING LANE', e.id, e.state, e.state === 'OPEN' ? 'ok' : e.state === 'CLOSING' ? 'warn' : '')
+    const hist = this.history(e.id, sort ? 40 : 120, 20)
+    const dock = this.f.byId.get(e.door) as Dock
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Carrier</label><span>${e.carrier}</span></div><div><label>Door</label><span>${e.door} · ${dock.trailerId ? 'TRAILER AT DOOR' : 'NO TRAILER'}</span></div><div><label>Cut-off</label><span>${e.cutoff}</span></div></div>
+      <div class="sec"><label>${sort ? 'Position' : 'Lane'} spec</label><div class="spec">${sort ? 'Manual scan-to-sort off the SLAM outfeed: sorter scans the label, the screen shows the lane, box goes into the 48 × 40 × 36 in gaylord on a pallet · lane sign overhead' : '12 ft lane striped on the floor from the sort area to the dock floor · gaylords and stretch-wrapped pallets staged in cut-off order · sign at the lane head · stretch wrapper at the west end'}</div></div>
+      <div class="sec tiles"><div class="tile"><label>Boxes ${sort ? 'sorted' : 'staged'}</label><b>${fmt(e.units)}</b></div>${sort ? `<div class="tile"><label>Gaylord fill</label><b>${Math.round(e.fill * 100)}<span>%</span></b></div>` : `<div class="tile"><label>Gaylords · pallets</label><b>${e.gaylords}<span>· ${e.pallets}</span></b></div>`}<div class="tile"><label>Trailer fill</label><b>${dock.trailerId ? Math.round(dock.progress * 100) : 0}<span>%</span></b></div><div class="tile"><label>Time to cut-off</label><b>${e.state === 'CLOSED' ? '—' : `${Math.max(0, Number(e.cutoff.slice(0, 2)) * 60 + Number(e.cutoff.slice(3)) - 15 * 60)}<span>min · from 15:00</span>`}</b></div></div>
+      <div class="sec"><label>Boxes per hour · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="sec"><label>${sort ? 'Gaylord' : 'Lane'} fill</label><div class="barrow"><span>${sort ? 'Current gaylord' : 'Lane floor in use'}</span><b>${Math.round(e.fill * 100)}%</b></div><div class="bar${e.fill > 0.85 ? ' warn' : ''}"><i style="width:${e.fill * 100}%"></i></div></div>
       <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#ffa62b')
   }

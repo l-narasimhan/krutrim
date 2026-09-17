@@ -255,7 +255,7 @@ export class Racking {
 const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 
 /** GMA 48x40 stringer pallet: 3 stringers, 7 top deck boards, 3 bottom boards. Origin at the bottom centre. */
-function makePalletGeometry(): THREE.BufferGeometry {
+export function makePalletGeometry(): THREE.BufferGeometry {
   const { L, W, H, boardT, stringerH, stringerW } = PALLET
   const parts: THREE.BufferGeometry[] = []
   for (const x of [-W / 2 + stringerW / 2, 0, W / 2 - stringerW / 2]) parts.push(boxAt(stringerW, stringerH, L, x, boardT + stringerH / 2, 0))

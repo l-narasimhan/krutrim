@@ -117,11 +117,16 @@ export interface PutWall extends Base {
   kind: 'wall'; number: number; slots: number; filled: number; ordersOpen: number; ordersComplete: number; lit: boolean[]
 }
 export interface Slam extends Base { kind: 'slam'; number: number; rate: number; rejects: number; labelled: number; state: 'RUNNING' | 'STOPPED' }
+/** One outbound lane per shipping door: the carrier sort position on the SLAM outfeed and the staging lane behind the door. */
+export interface Lane extends Base {
+  kind: 'lane'; role: 'sort' | 'stage'; number: number; door: string; carrier: string
+  units: number; gaylords: number; pallets: number; cutoff: string; fill: number; state: 'OPEN' | 'CLOSING' | 'CLOSED'
+}
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -144,7 +149,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -227,8 +232,23 @@ export function buildFacility(): Facility {
     slams.push(slam); byId.set(slam.id, slam)
   }
 
+  // Outbound lanes: a sort position under the SLAM outfeed and a staging lane behind each shipping door.
+  const cutoffs = ['16:30', '17:00', '18:00', '19:30', '20:00', '21:00']
+  for (const d of docks) {
+    if (d.prefix !== 'OB') continue
+    const cutoff = cutoffs[Math.floor((d.number - 1) / 5)]
+    const state: Lane['state'] = chance(0.15) ? 'CLOSED' : chance(0.2) ? 'CLOSING' : 'OPEN'
+    const sort: Lane = { kind: 'lane', role: 'sort', id: `SORT-${pad(d.number, 2)}`, number: d.number, door: d.id, carrier: d.carrier,
+      units: randInt(20, 240), gaylords: 1, pallets: 0, cutoff, fill: rand(0.1, 0.95), state,
+      center: [d.center[0], 0.7, 51.2], size: [3.2, 1.5, 2.6], face: [0, 0, -1] }
+    const stage: Lane = { kind: 'lane', role: 'stage', id: `STG-${pad(d.number, 2)}`, number: d.number, door: d.id, carrier: d.carrier,
+      units: randInt(200, 1800), gaylords: randInt(0, 3), pallets: randInt(0, 3), cutoff, fill: rand(0.05, 0.9), state,
+      center: [d.center[0], 0.8, 71], size: [3.4, 2.0, 17], face: [0, 0, -1] }
+    lanes.push(sort, stage); byId.set(sort.id, sort); byId.set(stage.id, stage)
+  }
+
   void rand
-  return { bays, bins, faces, docks, zones, stations, walls, slams, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.
