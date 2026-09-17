@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (console layers built; 15 DONE, 7 in review).
+Updated every time a task changes state. Last update: 2026-09-17 (milestone 9, 3.4 and 11.2 signed off; 22 DONE).
 
 **Status legend**
 
@@ -23,18 +23,18 @@ Updated every time a task changes state. Last update: 2026-09-17 (console layers
 | 0 Foundations | 4 | 1 | 0 | 0 | 3 | 0 |
 | 1 Building shell and yard | 8 | 0 | 0 | 0 | 5 | 3 |
 | 2 Inbound | 9 | 5 | 0 | 0 | 2 | 2 |
-| 3 Reserve storage and rack picking | 7 | 1 | 1 | 0 | 3 | 2 |
+| 3 Reserve storage and rack picking | 7 | 2 | 0 | 0 | 3 | 2 |
 | 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
 | 5 Pack, SLAM, manual sort | 6 | 5 | 0 | 0 | 0 | 1 |
 | 6 Outbound | 3 | 2 | 0 | 0 | 0 | 1 |
 | 7 Returns | 4 | 0 | 0 | 0 | 0 | 4 |
 | 8 Supporting areas | 9 | 0 | 0 | 0 | 0 | 9 |
-| 9 People | 5 | 0 | 5 | 0 | 0 | 0 |
+| 9 People | 5 | 5 | 0 | 0 | 0 | 0 |
 | 10 Navigation | 5 | 1 | 0 | 0 | 3 | 1 |
-| 11 Console | 5 | 0 | 1 | 0 | 4 | 0 |
+| 11 Console | 5 | 1 | 0 | 0 | 4 | 0 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **15** | **7** | **0** | **25** | **33** |
+| **Total** | **80** | **22** | **0** | **0** | **25** | **33** |
 
 ## Next up
 
@@ -89,7 +89,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | 3.7 | Rack pick levels (hybrid): levels 1–2 of every bay fitted with bins, carton-flow lanes or hand-stack shelves, each pick face barcoded; pallet reserve above | L | DONE | Any bay shows pick faces below and reserve pallets above; a pick face scans | Built 2026-09-17 (`scene/pickfaces.ts`): 3,012 faces are entities with product, qty, capacity and velocity; fit-out per bay is hand-stack (cut cases + reserve cases), carton flow (3 roller lanes, 120 mm drop, queued cases) or 6 × 18 in hopper bins; face labels on the level-B beam, bay placard moved to the level-C beam; click or focus a face to scan it. Signed off by Lan 2026-09-17 |
 | 3.2 | Pallets and loads: GMA pallets, wrapped load variants, cardboard texture, LPN labels | M | POC | No two adjacent loads look identical | Film is a translucent box; needs wrap creases and corner boards |
 | 3.3 | Bay inspection: tooltip, inspector with slot grid, pull-pallets action | M | POC | Any bay clickable and pullable | Working |
-| 3.4 | Forklifts and reach trucks: detailed models, parked and driving with mast animation | M | REVIEW | A truck drives an aisle and stops at a bay | Built 2026-09-17 with milestone 9 (`scene/people.ts`): four reach trucks RT-01…04 run putaway loops from staging down a RES-A aisle, stop at a bay, raise the mast, set the pallet and return; two counterbalance forklifts FL-01…02 cycle pallets from an occupied inbound door to staging; drivers seated; inspector shows driver, task, battery, hour meter. Models are proportioned but simple: no tyres tread, hydraulics or decals yet |
+| 3.4 | Forklifts and reach trucks: detailed models, parked and driving with mast animation | M | DONE | A truck drives an aisle and stops at a bay | Built 2026-09-17 with milestone 9 (`scene/people.ts`): four reach trucks RT-01…04 run putaway loops from staging down a RES-A aisle, stop at a bay, raise the mast, set the pallet and return; two counterbalance forklifts FL-01…02 cycle pallets from an occupied inbound door to staging; drivers seated; inspector shows driver, task, battery, hour meter. Models are proportioned but simple: no tyres tread, hydraulics or decals yet. Signed off by Lan 2026-09-17 |
 | 3.5 | Hazmat cage and high-value cage: fenced, gated, signed, own racking and shelving | S | TODO | Both cages labelled and inspectable | New 2026-09-17; placed on the north wall between inbound and returns (HAZ, HV in `src/layout.ts`), agreed 2026-09-17 |
 | 3.6 | Replenishment staging: reserve-to-pick pallets staged at the pick module ends | S | TODO | Staged replen pallets carry destination labels | New 2026-09-17 |
 
@@ -151,11 +151,11 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
-| 9.1 | Human figure: rigged low-poly figure, vest colour by role, badge | L | REVIEW | Walks in place, looks right at 2 m | Built 2026-09-17 in code (`scene/people.ts`): 1.75 m figure with real segment lengths, 19 instanced parts, skin, shirt, trousers and cap varied per person, class 2 vest coloured by role (orange pickers, sorters, drivers; lime packers, receivers, QC, graders; blue leads) with reflective bands, badge, handheld in the right hand. A scanned or rigged figure can replace the parts without touching behaviour |
-| 9.2 | Animations: walk, idle, pick, place, pack, scan, drive | M | REVIEW | Each role has its loop | Built 2026-09-17: procedural walk cycle driven by distance, idle, scan (arm raised, aim line), pick, place, bench work, drive and sit poses on a shared skeleton |
-| 9.3 | Role behaviours: pickers with carts, packers, receivers, graders, drivers; schedules and breaks | L | REVIEW | Floor looks staffed and busy in every zone | Built 2026-09-17: 60 on shift. 18 pickers walk aisles in RES-A and FM-1 with carts, stop at faces to scan and pick, drop totes on the takeaway belt; 16 packers, 8 receivers and 2 QC at their stations; 4 sorters scan-to-sort along the outfeed; 2 graders; 2 leads walk the floor; 6 drivers; 2 pickers on break. Loops are scripted; phase 2 makes them follow orders. Flow mode switch (2026-09-17): conveyor or walk-to-drop, pickers re-plan their loop on switch; FOLLOW ORDER traces either |
-| 9.4 | Person inspection: name, role, task, rate, time on shift | S | REVIEW | Any person clickable | Built 2026-09-17: hit volumes follow every person and truck; inspector shows badge, zone, station, live task, rate vs role target, units today, time on shift |
-| 9.5 | Handheld scanners in people's hands: real RF device model (Zebra TC-series / MC9300 style), holstered when walking, raised at a pick face with a red aim line and beep; each scan emits an event and updates the location (ties to 13.4) | M | REVIEW | Watch a picker scan a label and see the scan appear in the stream and on the bin | Built 2026-09-17: handheld in hand, raised at the face with a red aim line to its label; each scan logs an RF event, decrements the face quantity (live in the inspector if selected) and beeps within 25 m of the camera. Device is a plain block, not yet a modelled TC-series |
+| 9.1 | Human figure: rigged low-poly figure, vest colour by role, badge | L | DONE | Walks in place, looks right at 2 m | Built 2026-09-17 in code (`scene/people.ts`): 1.75 m figure with real segment lengths, 19 instanced parts, skin, shirt, trousers and cap varied per person, class 2 vest coloured by role (orange pickers, sorters, drivers; lime packers, receivers, QC, graders; blue leads) with reflective bands, badge, handheld in the right hand. A scanned or rigged figure can replace the parts without touching behaviour. Signed off by Lan 2026-09-17 |
+| 9.2 | Animations: walk, idle, pick, place, pack, scan, drive | M | DONE | Each role has its loop | Built 2026-09-17: procedural walk cycle driven by distance, idle, scan (arm raised, aim line), pick, place, bench work, drive and sit poses on a shared skeleton. Signed off by Lan 2026-09-17 |
+| 9.3 | Role behaviours: pickers with carts, packers, receivers, graders, drivers; schedules and breaks | L | DONE | Floor looks staffed and busy in every zone | Built 2026-09-17: 60 on shift. 18 pickers walk aisles in RES-A and FM-1 with carts, stop at faces to scan and pick, drop totes on the takeaway belt; 16 packers, 8 receivers and 2 QC at their stations; 4 sorters scan-to-sort along the outfeed; 2 graders; 2 leads walk the floor; 6 drivers; 2 pickers on break. Loops are scripted; phase 2 makes them follow orders. Flow mode switch (2026-09-17): conveyor or walk-to-drop, pickers re-plan their loop on switch; FOLLOW ORDER traces either. Signed off by Lan 2026-09-17 |
+| 9.4 | Person inspection: name, role, task, rate, time on shift | S | DONE | Any person clickable | Built 2026-09-17: hit volumes follow every person and truck; inspector shows badge, zone, station, live task, rate vs role target, units today, time on shift. Signed off by Lan 2026-09-17 |
+| 9.5 | Handheld scanners in people's hands: real RF device model (Zebra TC-series / MC9300 style), holstered when walking, raised at a pick face with a red aim line and beep; each scan emits an event and updates the location (ties to 13.4) | M | DONE | Watch a picker scan a label and see the scan appear in the stream and on the bin | Built 2026-09-17: handheld in hand, raised at the face with a red aim line to its label; each scan logs an RF event, decrements the face quantity (live in the inspector if selected) and beeps within 25 m of the camera. Device is a plain block, not yet a modelled TC-series. Signed off by Lan 2026-09-17 |
 
 ## 10 Navigation
 
@@ -172,7 +172,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 11.1 | Console shell: top bar, layer nav, KPI tiles, inspector, event stream, camera bar, stats | M | POC | Layout matches the reference structure | Working |
-| 11.2 | Layers: Overview, Inventory, Flow, Labor, Safety recolouring | M | REVIEW | Switching layers recolours the scene | Built 2026-09-17 (`scene/layers.ts` plus `setLayer` on racking, shelving and conveyors): Inventory tints reserve cases by bay fill and bins by velocity; Flow colours zone slabs by process stage and lights every conveyor; Labor colours zones by live headcount and marks each associate green, amber or red against their rate target; Safety marks forklift areas red, walkways green, 3 m clearance rings on trucks, pickers in truck aisles amber. Keys 1–5, `#layer=` deep link |
+| 11.2 | Layers: Overview, Inventory, Flow, Labor, Safety recolouring | M | DONE | Switching layers recolours the scene | Built 2026-09-17 (`scene/layers.ts` plus `setLayer` on racking, shelving and conveyors): Inventory tints reserve cases by bay fill and bins by velocity; Flow colours zone slabs by process stage and lights every conveyor; Labor colours zones by live headcount and marks each associate green, amber or red against their rate target; Safety marks forklift areas red, walkways green, 3 m clearance rings on trucks, pickers in truck aisles amber. Keys 1–5, `#layer=` deep link. Signed off by Lan 2026-09-17 |
 | 11.3 | Event stream: simulated WMS, dock, pack, returns, safety events, filters | S | POC | Events scroll at a realistic rate | Working |
 | 11.4 | Inspector: header, status, meta, metric tiles, sparkline, capacity bars, detail grid, actions | M | POC | Every inspectable type renders correctly | Bay, bin, dock done |
 | 11.5 | Focus and search by location ID or name | S | POC | `1A-02-014-C05` flies to that bin | Working |
