@@ -37,7 +37,7 @@ export class Console {
   private kpiTimer = 0
   private hist = new Map<string, number[]>()
   selected: Entity | null = null
-  onAction?: (a: 'pull' | 'door' | 'fly' | 'walk', e: Entity) => void
+  onAction?: (a: 'pull' | 'door' | 'fly' | 'walk' | 'follow', e: Entity) => void
 
   constructor(private f: Facility) {
     const dl = $('ids')
@@ -48,6 +48,10 @@ export class Console {
       this.filter = b.dataset.f as typeof this.filter
       this.renderEvents()
     })
+    const sel = $<HTMLSelectElement>('sel-person')
+    const order: string[] = ['picker', 'driver', 'packer', 'receiver', 'sorter', 'qc', 'grader', 'lead']
+    sel.innerHTML = '<option value="">FOLLOW…</option>' + order.map(r => `<optgroup label="${ROLE_NAME[r]}s">${f.people.filter(p => p.role === r).map(p => `<option value="${p.id}">${p.name} · ${p.id}${p.onBreak ? ' · break' : ''}</option>`).join('')}</optgroup>`).join('')
+    sel.onchange = () => { const p = f.byId.get(sel.value); if (p) this.onAction?.('follow', p) }
     const busy = f.docks.filter(d => d.trailerId)
     this.kpi.dock = busy.length / f.docks.length
     $('k-dock-s').textContent = `${busy.length} of ${f.docks.length} doors occupied`
@@ -386,7 +390,7 @@ export class Console {
       <div class="sec tiles"><div class="tile"><label>Rate</label><b>${e.rate}<span>${unit}</span></b></div><div class="tile"><label>Target</label><b>${target}<span>${unit}</span></b></div><div class="tile"><label>Units today</label><b>${fmt(e.unitsToday)}</b></div><div class="tile"><label>On shift</label><b>${Math.floor(onShift / 60)}<span>h ${onShift % 60} min · from ${e.shiftStart}</span></b></div></div>
       <div class="sec"><label>${unit} · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
       <div class="sec"><label>Rate vs target</label><div class="barrow"><span>${e.rate} of ${target} ${unit}</span><b>${Math.round(e.rate / target * 100)}%</b></div><div class="bar${e.rate < target * 0.8 ? ' warn' : ''}"><i style="width:${Math.min(100, e.rate / target * 100)}%"></i></div></div>
-      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+      <div class="actions"><button data-act="follow">FOLLOW</button><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
   }
 
@@ -400,7 +404,7 @@ export class Console {
       <div class="sec tiles"><div class="tile"><label>Battery</label><b>${e.battery}<span>%</span></b></div><div class="tile"><label>Moves today</label><b>${fmt(Math.round(e.hours % 97 + 40))}</b></div><div class="tile"><label>Load</label><b>${e.carrying ? '1' : '0'}<span>pallet</span></b></div><div class="tile"><label>Last inspection</label><b style="font-size:11px">06:12 today</b></div></div>
       <div class="sec"><label>Moves per hour · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
       <div class="sec"><label>Battery</label><div class="barrow"><span>State of charge</span><b>${e.battery}%</b></div><div class="bar${e.battery < 30 ? ' warn' : ''}"><i style="width:${e.battery}%"></i></div></div>
-      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+      <div class="actions"><button data-act="follow">FOLLOW</button><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#ffa62b')
   }
 }

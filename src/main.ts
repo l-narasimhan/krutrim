@@ -111,6 +111,7 @@ picker.onHover = (e, x, y) => { Highlight.place(highlight.hover, e && e !== ui.s
 picker.onSelect = e => select(e)
 
 function select(e: Entity | null) {
+  if (!e) rig.follow = null
   ui.select(e)
   Highlight.place(highlight.select, e)
   if (e) (document.getElementById('focus') as HTMLInputElement).value = e.id
@@ -133,8 +134,9 @@ const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.do
 ui.onAction = (a, e) => {
   if (a === 'pull' && e.kind === 'bay') { rackingOf.get(e.module)!.toggleExtract(e); ui.select(e) }
   if (a === 'door') toggleDoor(e)
-  if (a === 'fly') flyTo(e)
-  if (a === 'walk') walkTo(e)
+  if (a === 'fly') { rig.follow = null; flyTo(e) }
+  if (a === 'walk') { rig.follow = null; walkTo(e) }
+  if (a === 'follow') { select(e); flyTo(e); rig.follow = () => e.center }
 }
 
 // ---- Camera bar, layers, focus, keys ----------------------------------------------------------
@@ -150,7 +152,7 @@ const presets: Record<string, () => void> = {
   plan: () => rig.setMode('plan'),
   walk: () => rig.setMode('walk', { pos: [aisleX(resA, 2), 1.7, resA.z + resA.d + 3], yaw: 0 }),
 }
-document.querySelectorAll<HTMLButtonElement>('.cam[data-cam]').forEach(b => b.onclick = () => { tour.end(); presets[b.dataset.cam!]() })
+document.querySelectorAll<HTMLButtonElement>('.cam[data-cam]').forEach(b => b.onclick = () => { tour.end(); rig.follow = null; presets[b.dataset.cam!]() })
 // Guided tour: inbound docks to every corner, in process order. Each stop frames and selects the entity.
 const tour = new Tour(facility, 7, e => { select(e); flyTo(e) }, () => {})
 document.getElementById('btn-tour')!.onclick = () => (tour.active ? tour.end() : tour.start())

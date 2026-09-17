@@ -12,6 +12,8 @@ export class CameraRig {
   controls: OrbitControls
   mode: Mode = 'orbit'
   onModeChange?: (m: Mode) => void
+  /** While set, the orbit target tracks this position each frame and the camera moves with it. */
+  follow: (() => Vec3) | null = null
   private fly: { p0: THREE.Vector3; p1: THREE.Vector3; t0: THREE.Vector3; t1: THREE.Vector3; t: number; dur: number } | null = null
   private keys = new Set<string>()
   private yaw = Math.PI
@@ -130,6 +132,12 @@ export class CameraRig {
     if (this.mode === 'walk') {
       this.updateWalk(dt)
       return
+    }
+    if (this.follow && !this.fly) {
+      const [x, y, z] = this.follow()
+      const dx = x - this.controls.target.x, dy = Math.min(y, 4) - this.controls.target.y, dz = z - this.controls.target.z
+      this.controls.target.set(x, Math.min(y, 4), z)
+      this.persp.position.x += dx; this.persp.position.y += dy; this.persp.position.z += dz
     }
     if (this.fly) {
       const f = this.fly

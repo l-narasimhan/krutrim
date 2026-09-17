@@ -146,3 +146,5 @@ canvas.barcode { width: 100%; height: 64px; display: block; background: #f7f5f0;
 .cubbies { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
 .cubbies i { display: block; aspect-ratio: 1; background: var(--panel2); border: 1px solid var(--line); }
 .cubbies i.on { background: rgba(62,227,154,0.35); border-color: #3ee39a; }
+select.cam { appearance: none; -webkit-appearance: none; background: transparent; border: 1px solid var(--line2); color: var(--accent); font: inherit; font-size: 9px; letter-spacing: 0.12em; padding: 6px 10px; max-width: 150px; cursor: pointer; }
+select.cam option, select.cam optgroup { background: #0d1117; color: var(--text); letter-spacing: 0; }
