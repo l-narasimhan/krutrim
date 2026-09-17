@@ -3,7 +3,7 @@
 import { rng, rand, randInt, pick, chance } from './rng'
 import {
   HALL as HALL_SPEC, HALL_X0, HALL_Z0, DOOR, MODULES, AREAS, RACK as RACK_LAYOUT, RACK_ROW_PITCH, SHELF as SHELF_LAYOUT, SHELF_ROW_PITCH,
-  doors as layoutDoors, type StorageModule, type Area,
+  doors as layoutDoors, PACK, PACK_ZONES, type StorageModule, type Area,
 } from './layout'
 
 export { MODULES, AREAS, RACK_ROW_PITCH, SHELF_ROW_PITCH, DOOR } from './layout'
@@ -109,11 +109,15 @@ export interface Dock extends Base {
   kind: 'dock'; prefix: string; number: number; wall: 'N' | 'S'; use: string; carrier: string; trailerId: string | null
   state: DockState; progress: number; units: number; doorOpen: number; doorTarget: number; minutesAtDoor: number
 }
+export interface Station extends Base {
+  kind: 'station'; number: number; zone: string; type: 'single' | 'multi'; associate: string | null
+  rate: number; queue: number; packedToday: number; state: 'PACKING' | 'IDLE' | 'OFFLINE'
+}
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -125,6 +129,7 @@ const PRODUCTS = [
   'Weighted Blanket 15 lb', 'Coffee Pods 96 ct', 'Monitor 27 in', 'Mechanical Keyboard', 'Baby Wipes 720 ct',
   'Vitamin D3 400 ct', 'Phone Case Clear', 'HDMI Cable 6 ft', 'Running Shoes M10', 'Water Bottle 32 oz',
 ]
+const ASSOCIATES = ['M. Okafor', 'J. Alvarez', 'R. Chen', 'T. Nguyen', 'S. Patel', 'D. Kowalski', 'A. Haddad', 'L. Moreau', 'K. Sato', 'B. Osei', 'E. Rivera', 'P. Lindqvist']
 const INBOUND_CARRIERS: [string, string][] = [['XPO Logistics', 'XPOU'], ['J.B. Hunt', 'JBHU'], ['Schneider', 'SNLU'], ['Werner', 'WENU'], ['Knight-Swift', 'KNXU'], ['Estes Express', 'EXLA'], ['Old Dominion', 'ODFL']]
 const OUTBOUND_SCAC: Record<string, string> = { UPS: 'UPSZ', FedEx: 'FDEG', USPS: 'USPS', 'Regional and LTL': 'SAIA' }
 const sku = () => `B0${randInt(10, 99)}${pick(['K', 'X', 'M', 'R'])}${randInt(1000, 9999)}${pick(['A', 'B', 'C', 'D'])}`
@@ -135,7 +140,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -178,8 +183,27 @@ export function buildFacility(): Facility {
     zones.push(zone); byId.set(zone.id, zone)
   }
 
+  // Pack stations: PK-01…24 singles, PK-25…48 multis, two rows per zone facing the box line, numbered west to east.
+  for (const pz of PACK_ZONES) {
+    const a = AREAS.find(x => x.id === pz.zone)!
+    const x0 = a.x + (a.w - (PACK.perRow - 1) * PACK.pitch) / 2
+    for (let r = 0; r < 2; r++) for (let i = 0; i < PACK.perRow; i++) {
+      const n = pz.firstId + r * PACK.perRow + i
+      const faceDir = r === 0 ? 1 : -1 // row 0 north of the line faces south onto it
+      const z = PACK.lineZ - faceDir * PACK.rowOffset
+      const staffed = chance(0.8)
+      const st: Station = {
+        kind: 'station', id: `PK-${pad(n, 2)}`, number: n, zone: pz.zone, type: pz.type,
+        associate: staffed ? pick(ASSOCIATES) : null, rate: staffed ? randInt(pz.type === 'single' ? 70 : 40, pz.type === 'single' ? 130 : 75) : 0,
+        queue: staffed ? randInt(0, 9) : 0, packedToday: staffed ? randInt(120, 640) : 0, state: staffed ? 'PACKING' : chance(0.5) ? 'IDLE' : 'OFFLINE',
+        center: [x0 + i * PACK.pitch, 1.0, z], size: [PACK.pitch - 0.3, 2.0, 2.2], face: [0, 0, faceDir],
+      }
+      stations.push(st); byId.set(st.id, st)
+    }
+  }
+
   void rand
-  return { bays, bins, faces, docks, zones, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, stations, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.

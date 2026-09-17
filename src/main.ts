@@ -7,6 +7,7 @@ import { Building } from './scene/building'
 import { Racking } from './scene/racking'
 import { Shelving } from './scene/shelving'
 import { Conveyor } from './scene/conveyor'
+import { Packing } from './scene/packing'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
@@ -52,8 +53,9 @@ const rackings = MODULES.filter(m => m.kind === 'rack').map(m => new Racking(m, 
 const shelvings = MODULES.filter(m => m.kind === 'shelf').map(m => new Shelving(m, facility.binsOf.get(m.id)!, M))
 const rackingOf = new Map(rackings.map(r => [r.module.id, r]))
 const conveyor = new Conveyor(M)
-scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group)
-const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders]
+const packing = new Packing(facility.stations, M)
+scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group, packing.group)
+const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders, ...packing.colliders]
 
 // Daylight spilling in at the open doors, and a few pooled lights along the default views.
 for (const d of facility.docks) if (d.doorTarget && Math.abs(d.number % 6) === 3) {
@@ -70,7 +72,7 @@ for (const [x, z] of [[-39, 22], [-33, -20], [-45, -20], [70, -48], [0, 30]]) {
 const rig = new CameraRig(canvas, colliders)
 const highlight = new Highlight(scene)
 const ui = new Console(facility)
-const picker = new Picker(canvas, [...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, building.zoneVolumes], () => rig.camera)
+const picker = new Picker(canvas, [...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, packing.volumes, building.zoneVolumes], () => rig.camera)
 
 picker.onHover = (e, x, y) => { Highlight.place(highlight.hover, e && e !== ui.selected ? e : null); ui.tooltip(e, x, y); canvas.style.cursor = e ? 'pointer' : '' }
 picker.onSelect = e => select(e)
@@ -83,7 +85,7 @@ function select(e: Entity | null) {
 }
 
 function walkTo(e: Entity) {
-  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : 0
+  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : e.kind === 'station' ? 1.1 : 0
   const pos: Vec3 = [e.center[0] + e.face[0] * off, 1.7, e.center[2] + e.face[2] * off]
   // Face the entity: yaw 0 looks toward -Z, so look back along the face vector.
   const yaw = Math.atan2(e.face[0], e.face[2])
@@ -91,7 +93,7 @@ function walkTo(e: Entity) {
 }
 /** Standoff by kind: bins sit on a 1.4 m cart aisle so the camera stays inside it; docks read best from a
  *  few metres back; zones from far enough to see the whole outline but never from above the roof. */
-const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
+const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'station' ? 4.5 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
 const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, standoff(e))
 const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.doorTarget ? 0 : 1; e.state = e.doorTarget ? (e.trailerId ? e.state : 'EMPTY') : 'CLOSED'; building.animateDoor(e); ui.select(e); syncDoorButton() } }
 

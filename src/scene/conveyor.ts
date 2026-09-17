@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { CONVEYORS, type ConveyorLine } from '../layout'
-import { boxAt, cylAt, merged, setInstance } from './util'
+import { boxAt, cylAt, merged, setInstance, canvasTexture } from './util'
+import { Tex } from '../assets'
 import type { Mats } from './mats'
 import { rng } from '../rng'
 
@@ -33,13 +34,15 @@ export class Conveyor {
   group = new THREE.Group()
   colliders: THREE.Box3[] = []
   private totes: THREE.InstancedMesh
-  private lines: { path: Path; h: number; s: Float32Array; first: number; count: number }[] = []
+  private boxes: THREE.InstancedMesh
+  private boxSize: Float32Array
+  private lines: { path: Path; h: number; s: Float32Array; first: number; count: number; carries: 'tote' | 'box' }[] = []
   private tmp = new THREE.Vector2()
 
   constructor(M: Mats) {
-    const frame: THREE.BufferGeometry[] = [], belt: THREE.BufferGeometry[] = [], dark: THREE.BufferGeometry[] = [], drives: THREE.BufferGeometry[] = []
+    const frame: THREE.BufferGeometry[] = [], belt: THREE.BufferGeometry[] = [], rollers: THREE.BufferGeometry[] = [], dark: THREE.BufferGeometry[] = [], drives: THREE.BufferGeometry[] = []
     const eyes: [number, number, number, number][] = []
-    let toteTotal = 0
+    let toteTotal = 0, boxTotal = 0
     for (const line of CONVEYORS) {
       const runs: [Path, number][] = [[makePath(line.points), line.h]]
       for (const sp of line.spurs) {
@@ -48,15 +51,23 @@ export class Conveyor {
         runs.push([makePath([[at.x, at.y], sp.to]), line.h])
       }
       runs.forEach(([path, h], ri) => {
-        this.buildRun(path, h, frame, belt, dark, drives, eyes, ri === 0)
+        this.buildRun(path, h, frame, line.kind === 'belt' ? belt : rollers, dark, drives, eyes, ri === 0)
         if (ri === 0) {
-          const n = Math.floor(path.len / 2.4)
-          this.lines.push({ path, h, s: new Float32Array(n).map((_, i) => i * (path.len / n) + rng() * 0.8), first: toteTotal, count: n })
-          toteTotal += n
+          const n = Math.floor(path.len / (line.carries === 'tote' ? 2.4 : 2.0))
+          const first = line.carries === 'tote' ? toteTotal : boxTotal
+          this.lines.push({ path, h, s: new Float32Array(n).map((_, i) => i * (path.len / n) + rng() * 0.8), first, count: n, carries: line.carries })
+          if (line.carries === 'tote') toteTotal += n; else boxTotal += n
         }
       })
     }
-    this.group.add(merged(frame, M.galvanised), merged(belt, M.rubber, false), merged(dark, M.steelDark), merged(drives, M.upright))
+    // Roller beds: 1.9" galvanised rollers on 3" centres, drawn as a stripe texture on the bed top.
+    const rollerTex = canvasTexture(32, 64, ctx => {
+      ctx.fillStyle = '#9a9ea1'; ctx.fillRect(0, 0, 32, 64)
+      ctx.fillStyle = '#5d6165'; ctx.fillRect(0, 0, 32, 10); ctx.fillRect(0, 32, 32, 10)
+      ctx.fillStyle = '#c9cdd0'; ctx.fillRect(0, 14, 32, 4); ctx.fillRect(0, 46, 32, 4)
+    }, { repeat: [1, 1] })
+    const rollerMat = new THREE.MeshStandardMaterial({ map: rollerTex, roughness: 0.4, metalness: 0.8 })
+    this.group.add(merged(frame, M.galvanised), merged(belt, M.rubber, false), merged(rollers, rollerMat, false), merged(dark, M.steelDark), merged(drives, M.upright))
     // Photo eyes: a small sensor body on the rail post with a red LED, one instanced mesh each.
     const eyeBody = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, 0.05, 0.02), M.steelDark, eyes.length)
     const eyeLed = new THREE.InstancedMesh(new THREE.BoxGeometry(0.008, 0.008, 0.004), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff2020, emissiveIntensity: 3 }), eyes.length)
@@ -68,7 +79,17 @@ export class Conveyor {
     const c = new THREE.Color()
     for (let i = 0; i < toteTotal; i++) this.totes.setColorAt(i, c.setHex(rng() < 0.5 ? 0x9a9d9f : 0xe0b400))
     this.totes.castShadow = true
-    this.group.add(this.totes)
+    // Packed boxes on the roller lines: a spread of common shipper sizes.
+    this.boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ ...Tex.cardboard(), roughness: 1 }), Math.max(1, boxTotal))
+    this.boxes.count = boxTotal
+    this.boxSize = new Float32Array(boxTotal * 3)
+    for (let i = 0; i < boxTotal; i++) {
+      const [w, h, d] = [[0.3, 0.2, 0.4], [0.4, 0.3, 0.5], [0.25, 0.15, 0.3], [0.45, 0.35, 0.45], [0.2, 0.1, 0.3]][Math.floor(rng() * 5)]
+      this.boxSize.set([w, h, d], i * 3)
+      this.boxes.setColorAt(i, c.setHSL(0.08, 0.35, 0.45 + rng() * 0.12))
+    }
+    this.boxes.castShadow = true
+    this.group.add(this.totes, this.boxes)
     this.update(0)
   }
 
@@ -80,7 +101,11 @@ export class Conveyor {
       const len = a.distanceTo(b), ry = Math.atan2(b.x - a.x, b.y - a.y)
       const cx = (a.x + b.x) / 2, cz = (a.y + b.y) / 2
       // Bed and belt surface, one piece per straight run; frames and rails the same.
-      belt.push(boxAt(beltW, 0.012, len, cx, h - 0.006, cz, ry))
+      const top = boxAt(beltW, 0.012, len, cx, h - 0.006, cz, ry)
+      // Stretch the roller stripe texture along the run (one roller per 3 in) by scaling the top face's UVs.
+      const uv = top.getAttribute('uv') as THREE.BufferAttribute
+      for (let k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k) * (len / 0.152))
+      belt.push(top)
       dark.push(boxAt(beltW, bedH, len, cx, h - bedH / 2 - 0.012, cz, ry))
       for (const s of [-1, 1]) {
         frame.push(boxAt(frameT, frameH, len, 0, h - frameH / 2, 0, 0).translate(s * (beltW / 2 + frameT / 2), 0, 0).applyMatrix4(rot(ry)).translate(cx, 0, cz))
@@ -121,13 +146,19 @@ export class Conveyor {
       for (let i = 0; i < l.count; i++) {
         l.s[i] += CV.speed * dt
         const ry = along(l.path, l.s[i], this.tmp)
-        setInstance(this.totes, l.first + i, this.tmp.x, l.h + 0.002, this.tmp.y, 1, 1, 1, 0, ry, 0)
+        if (l.carries === 'tote') setInstance(this.totes, l.first + i, this.tmp.x, l.h + 0.002, this.tmp.y, 1, 1, 1, 0, ry, 0)
+        else {
+          const k = (l.first + i) * 3, bs = this.boxSize
+          setInstance(this.boxes, l.first + i, this.tmp.x, l.h + bs[k + 1] / 2 + 0.002, this.tmp.y, bs[k], bs[k + 1], bs[k + 2], 0, ry, 0)
+        }
       }
     }
     this.totes.instanceMatrix.needsUpdate = true
+    this.boxes.instanceMatrix.needsUpdate = true
   }
 }
 
+export { makeToteGeometry }
 const _r = new THREE.Matrix4()
 const rot = (ry: number) => _r.makeRotationY(ry)
 

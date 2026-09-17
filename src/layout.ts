@@ -191,13 +191,27 @@ export const AREAS: Area[] = [
 
 // ---- Conveyors -----------------------------------------------------------------------------------------------
 
-/** A powered tote conveyor line: a polyline of world (x, z) points, belt top at `h`, and spurs that branch off it. */
-export interface ConveyorLine { id: string; name: string; points: [number, number][]; h: number; spurs: { at: number; to: [number, number] }[] }
+/** A powered conveyor line: a polyline of world (x, z) points, top of belt or rollers at `h`, spurs that branch
+ *  off it, `kind` belt or roller, and what rides it. */
+export interface ConveyorLine {
+  id: string; name: string; points: [number, number][]; h: number; spurs: { at: number; to: [number, number] }[]
+  kind: 'belt' | 'roller'; carries: 'tote' | 'box'
+}
 
-/** The takeaway belt runs west along the south edge of storage at z 18 and diverts into each pack zone. */
+/** Pack stations: two rows of 12 per pack zone facing a packed-box roller line at `lineZ`, which runs east then
+ *  south to the SLAM line. Station pitch 3 m, bench 1.8 × 0.9 m at 0.9 m. */
+export const PACK = { perRow: 12, pitch: 3.0, lineZ: 29.5, rowOffset: 2.6, bench: { w: 1.8, d: 0.9, h: 0.9 } }
+export const PACK_ZONES: { zone: string; type: 'single' | 'multi'; firstId: number }[] = [
+  { zone: 'PACK-S', type: 'single', firstId: 1 }, { zone: 'PACK-M', type: 'multi', firstId: 25 },
+]
+
+/** The takeaway belt runs west along the south edge of storage at z 18 and diverts into each pack zone;
+ *  each pack zone's box line collects packed boxes and carries them south to the SLAM line at z 41. */
 export const CONVEYORS: ConveyorLine[] = [
+  { id: 'CV-PACK-S', name: 'Pack singles box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-107, PACK.lineZ], [-62, PACK.lineZ], [-62, 40.5]] },
+  { id: 'CV-PACK-M', name: 'Pack multis box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-17, PACK.lineZ], [28, PACK.lineZ], [28, 40.5]] },
   {
-    id: 'CV-TAKE', name: 'Takeaway conveyor', points: [[50, 18], [-118, 18]], h: 0.85,
+    id: 'CV-TAKE', name: 'Takeaway conveyor', kind: 'belt', carries: 'tote', points: [[50, 18], [-118, 18]], h: 0.85,
     spurs: [
       { at: 40, to: [40, 25] },   // gift wrap
       { at: 5, to: [5, 25] },     // pack multis

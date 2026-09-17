@@ -1,4 +1,4 @@
-import type { Entity, Bay, Bin, PickFace, Dock, Zone, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
@@ -28,7 +28,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -88,7 +88,7 @@ export class Console {
       `Putaway · ${bay()} · LPN${n(1000000, 9999999)} · reach truck RT-0${n(1, 6)}`,
       `Replenishment task created · ${bay()} → ${bin()}`,
       (() => { const d = dock(); return `${d.id} · ${d.carrier} ${d.trailerId} · ${(d.progress * 100).toFixed(0)}% ${d.state === 'LOADING' ? 'loaded' : 'unloaded'}` })(),
-      `Order ${n(1000000, 9999999)} packed · station PK-${String(n(1, 48)).padStart(2, '0')} · ${n(1, 6)} items`,
+      (() => { const st = this.f.stations.filter(x => x.state === 'PACKING'); const p1 = st[Math.floor(r() * st.length)]; return `Order ${n(1000000, 9999999)} packed · ${p1.id} · ${p1.associate} · ${n(1, p1.type === 'single' ? 1 : 6)} items` })(),
       `Cycle count closed · ${bay()} · variance 0`,
       `RF scan · ${bin()} · location verified`,
       `Wave W-${n(200, 260)} released · ${n(120, 480)} orders · ${n(6, 14)} pickers`,
@@ -132,6 +132,8 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="${e.sku ? 'ok' : ''}">● ${e.sku ? 'STOCKED' : 'EMPTY'}</span></h4><dl><dt>Aisle</dt><dd>${e.aisle}</dd><dt>Product</dt><dd>${e.product ?? '—'}</dd><dt>SKU</dt><dd>${e.sku ?? '—'}</dd><dt>Qty</dt><dd>${e.qty} ea</dd><dt>Velocity</dt><dd>${e.velocity}</dd></dl><div class="hint">CLICK · SCAN BIN</div>`
     } else if (e.kind === 'face') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.sku ? 'ok' : ''}">● ${e.sku ? 'STOCKED' : 'EMPTY'}</span></h4><dl><dt>Pick face</dt><dd>${FIT_NAME[e.fit]}</dd><dt>Product</dt><dd>${e.product ?? '—'}</dd><dt>SKU</dt><dd>${e.sku ?? '—'}</dd><dt>Qty</dt><dd>${e.qty} / ${e.capacity} ea</dd><dt>Velocity</dt><dd>${e.velocity}</dd></dl><div class="hint">CLICK · SCAN FACE</div>`
+    } else if (e.kind === 'station') {
+      tt.innerHTML = `<h4>${e.id} <span class="${e.state === 'PACKING' ? 'ok' : e.state === 'IDLE' ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Station</dt><dd>Pack ${e.type === 'single' ? 'singles' : 'multis'}</dd><dt>Associate</dt><dd>${e.associate ?? '—'}</dd><dt>Rate</dt><dd>${e.rate} UPH</dd><dt>Queue</dt><dd>${e.queue} totes</dd></dl><div class="hint">CLICK · INSPECT STATION</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
     } else {
@@ -149,6 +151,7 @@ export class Console {
     if (e.kind === 'bay') this.renderBay(e)
     else if (e.kind === 'bin') this.renderBin(e)
     else if (e.kind === 'face') this.renderFace(e)
+    else if (e.kind === 'station') this.renderStation(e)
     else if (e.kind === 'dock') this.renderDock(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
@@ -264,6 +267,20 @@ export class Console {
     ctx.fillStyle = '#f7f5f0'; ctx.fillRect(0, 0, 640, 128)
     ctx.fillStyle = '#111'; ctx.font = 'bold 30px "JetBrains Mono", monospace'; ctx.textBaseline = 'top'; ctx.fillText(e.id, 24, 12)
     drawBarcode(ctx, e.id, 16, 52, 608, 64)
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
+  }
+
+  private renderStation(e: Station) {
+    this.head(`PACK STATION · ${e.type === 'single' ? 'SINGLES' : 'MULTIS'}`, e.id, e.state, e.state === 'PACKING' ? 'ok' : e.state === 'IDLE' ? 'warn' : '')
+    const hist = this.history(e.id, e.rate || 20, 25)
+    const target = e.type === 'single' ? 110 : 60
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Zone</label><span>${e.zone}</span></div><div><label>Associate</label><span>${e.associate ?? 'UNSTAFFED'}</span></div><div><label>Row</label><span>${e.face[2] > 0 ? 'NORTH' : 'SOUTH'} of box line</span></div></div>
+      <div class="sec"><label>Station spec</label><div class="spec">72 × 36 in steel-frame pack bench, laminate top at 36 in · two-tier carton riser · monitor and keyboard · bench scale · thermal label printer · tape gun · paper dunnage dispenser · tote stand · packed boxes onto the ${e.zone === 'PACK-S' ? 'singles' : 'multis'} roller line to SLAM</div></div>
+      <div class="sec tiles"><div class="tile"><label>Rate</label><b>${e.rate}<span>UPH</span></b></div><div class="tile"><label>Target</label><b>${target}<span>UPH</span></b></div><div class="tile"><label>Queue</label><b>${e.queue}<span>totes</span></b></div><div class="tile"><label>Packed today</label><b>${fmt(e.packedToday)}</b></div></div>
+      <div class="sec"><label>Units per hour · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="sec"><label>Rate vs target</label><div class="barrow"><span>${e.rate} of ${target} UPH</span><b>${Math.round(e.rate / target * 100)}%</b></div><div class="bar${e.rate < target * 0.8 ? ' warn' : ''}"><i style="width:${Math.min(100, e.rate / target * 100)}%"></i></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
   }
 }

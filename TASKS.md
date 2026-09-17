@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (5.1 takeaway conveyor built; 0.2, 3.7 and 10.4 DONE).
+Updated every time a task changes state. Last update: 2026-09-17 (5.1 and 5.2 built; 0.2, 3.7 and 10.4 DONE).
 
 **Status legend**
 
@@ -25,7 +25,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (5.1 takeaway c
 | 2 Inbound | 9 | 0 | 0 | 0 | 2 | 7 |
 | 3 Reserve storage and rack picking | 7 | 1 | 0 | 0 | 3 | 3 |
 | 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
-| 5 Pack, SLAM, manual sort | 6 | 0 | 1 | 0 | 0 | 5 |
+| 5 Pack, SLAM, manual sort | 6 | 0 | 2 | 0 | 0 | 4 |
 | 6 Outbound | 3 | 0 | 0 | 0 | 0 | 3 |
 | 7 Returns | 4 | 0 | 0 | 0 | 0 | 4 |
 | 8 Supporting areas | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -34,7 +34,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (5.1 takeaway c
 | 11 Console | 5 | 0 | 0 | 0 | 4 | 1 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **3** | **1** | **0** | **25** | **51** |
+| **Total** | **80** | **3** | **2** | **0** | **25** | **50** |
 
 ## Next up
 
@@ -110,7 +110,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 5.1 | Takeaway conveyor: belt and roller sections, rails, legs, photo eyes, motors with conduit | M | REVIEW | Totes ride it end to end | Built 2026-09-17 (`scene/conveyor.ts`, line data in `layout.ts` CONVEYORS): 168 m 24 in belt at 0.85 m along z 18 in 10 ft sections on H-stands, guard rails, gearmotor drives every 30 m with conduit to a control station, photo eyes every 20 ft, spurs into gift, pack multis, rebin and pack singles; 70 attached-lid totes ride west at 0.6 m/s |
-| 5.2 | Pack stations: 12 stations with bench, box shelf, tape, dunnage, scale, printer, monitor | M | TODO | Stations inspectable with associate, rate, queue | |
+| 5.2 | Pack stations: 48 stations with bench, box shelf, tape, dunnage, scale, printer, monitor | M | REVIEW | Stations inspectable with associate, rate, queue | Built 2026-09-17 (`scene/packing.ts`): PK-01…24 singles, PK-25…48 multis, two rows per zone facing a roller box line that runs to the SLAM zone with packed boxes riding it; each station has bench, carton riser with flats, monitor, keyboard, scale, printer, tape gun, dunnage roll, tote stand, WIP boxes and its number; inspector shows associate, rate vs target, queue, packed today. No people yet (milestone 9) |
 | 5.3 | SLAM line: scanner tunnel, print-and-apply, in-line scale, reject lane | M | TODO | Boxes ride through and get a label | |
 | 5.4 | Manual carrier sort: sort desks, gaylords and pallets per lane, scan-to-sort screens | M | TODO | Lanes labelled by carrier and inspectable | |
 | 5.5 | Rebin / sort walls for multi-item orders: put walls with lit slots, tote induct, order-complete lights | M | TODO | A multi-item order fills a wall slot | New 2026-09-17 |
