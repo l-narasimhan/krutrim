@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (outbound band built: 5.1–5.5, 6.1, 6.3; 0.2, 3.7 and 10.4 DONE).
+Updated every time a task changes state. Last update: 2026-09-17 (outbound band 5.1–5.5, 6.1, 6.3 and inbound band 2.3–2.7 built; 0.2, 3.7 and 10.4 DONE).
 
 **Status legend**
 
@@ -22,7 +22,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (outbound band 
 |---|---|---|---|---|---|---|
 | 0 Foundations | 4 | 1 | 0 | 0 | 3 | 0 |
 | 1 Building shell and yard | 8 | 0 | 0 | 0 | 5 | 3 |
-| 2 Inbound | 9 | 0 | 0 | 0 | 2 | 7 |
+| 2 Inbound | 9 | 0 | 5 | 0 | 2 | 2 |
 | 3 Reserve storage and rack picking | 7 | 1 | 0 | 0 | 3 | 3 |
 | 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
 | 5 Pack, SLAM, manual sort | 6 | 0 | 5 | 0 | 0 | 1 |
@@ -34,7 +34,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (outbound band 
 | 11 Console | 5 | 0 | 0 | 0 | 4 | 1 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **3** | **7** | **0** | **25** | **45** |
+| **Total** | **80** | **3** | **12** | **0** | **25** | **40** |
 
 ## Next up
 
@@ -73,11 +73,11 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 |---|---|---|---|---|---|
 | 2.1 | Dock doors: 62 doors, roll-up animation, leveler, bumpers, dock light, restraint, number | M | POC | Door opens on click; number readable | All 62 built with all parts, instanced panels, numbered plates inside and out; any door opens from the inspector |
 | 2.2 | Trailers and tractors: 53 ft dry vans, wheels, landing gear, livery, tractor cabs | M | POC | Trailers sit correctly against docks, doors open | 42 trailers at occupied doors on both walls, cargo tracks load/unload progress; no tractor, no livery |
-| 2.3 | Receive stations: desks, scanners, monitors, printers, tote stacks, bale area | M | TODO | Receive station inspectable | |
-| 2.4 | Inbound staging: floor lanes, pallets, pallet jacks, stretch wrap, receive conveyor | S | TODO | Staging populated and labelled | |
-| 2.5 | QA/QC inspection at receive: inspection benches, sample carts, scales, monitors, pass/fail lanes | M | TODO | An inspection bench is inspectable with pass/fail counts | New 2026-09-17 |
-| 2.6 | QC reject / damage / hold cage: fenced quarantine cage with gate, hold shelving, vendor-return pallets, red hold tags | M | TODO | Cage inspectable: items on hold, reason codes, age | New 2026-09-17 |
-| 2.7 | Putaway staging: floor positions by destination module, staged pallets and tote stacks, putaway buffer conveyor to the pick module | M | TODO | Staged pallets carry destination labels; buffer conveyor feeds the mezzanine | New 2026-09-17 |
+| 2.3 | Receive stations: desks, scanners, monitors, printers, tote stacks, bale area | M | REVIEW | Receive station inspectable | Built 2026-09-17 (`scene/inbound.ts`): RV-01…16, each a receive desk with monitor, scanner and LPN printer beside a decant table with cases, a tote stack and a queued pallet; two bale cages at the west end; inspector shows associate, units/h vs target, pallets queued, received today |
+| 2.4 | Inbound staging: floor lanes, pallets, pallet jacks, stretch wrap, receive conveyor | S | REVIEW | Staging populated and labelled | Built 2026-09-17: a striped, numbered lane behind every inbound door with unloaded pallets (more at occupied doors), manual pallet jacks in some lanes, two extendable conveyors parked at floor-load doors |
+| 2.5 | QA/QC inspection at receive: inspection benches, sample carts, scales, monitors, pass/fail lanes | M | REVIEW | An inspection bench is inspectable with pass/fail counts | Built 2026-09-17: QC-01…06 benches with scale, monitor and sample cart; green PASS lane south to putaway staging, red FAIL lane east to the hold cage; inspector shows samples/h, queue, inspected today. Pass/fail split is phase 2 data |
+| 2.6 | QC reject / damage / hold cage: fenced quarantine cage with gate, hold shelving, vendor-return pallets, red hold tags | M | REVIEW | Cage inspectable: items on hold, reason codes, age | Built 2026-09-17: CAGE-QC, 8 ft chain-link on posts with top rail, sliding gate and QC HOLD sign on the west face, hold shelving and red-tagged pallets inside; inspector shows items, oldest hold and holds by reason |
+| 2.7 | Putaway staging: floor positions by destination module, staged pallets and tote stacks, putaway buffer conveyor to the pick module | M | REVIEW | Staged pallets carry destination labels; buffer conveyor feeds the mezzanine | Built 2026-09-17: 30 painted positions in RES-A, RES-B and FM-1 groups with painted and posted destination signs, staged pallets and tote stacks; buffer belt conveyor from staging east to FM-1 with totes riding it. Per-pallet destination labels still to do |
 | 2.8 | Non-conveyable (NC) receive and storage: oversize floor positions, NC pallet racking | S | TODO | NC zone labelled and stocked | New 2026-09-17 |
 | 2.9 | Dock unloading in motion: forklift / pallet jack cycling pallets from trailer to staging; extendable conveyor into floor-loaded trailers with unloaders handing cartons; cargo in the trailer shrinks; dock inspector progress tracks it | M | TODO | A trailer visibly empties over time by both methods | New 2026-09-17 |
 

@@ -207,6 +207,12 @@ export const SLAM_STATIONS: { id: string; x: number }[] = [{ id: 'SLAM-1', x: -5
 /** Put walls for multi-item rebin: 8 walls in two rows of 4 in the rebin zone, each 8 slots wide × 6 high. */
 export const PUT_WALLS = { rows: 2, perRow: 4, w: 3.0, h: 2.2, d: 0.6, cols: 8, tiers: 6, zRows: [25.5, 33.0], x0: -55, pitch: 10 }
 
+/** Receive: 16 decant stations in a row across the receive zone; QC: 6 inspection benches in two rows. */
+export const RECEIVE = { count: 16, x0: -114, pitch: 4.0, z: -75.4 }
+export const QC_BENCHES = { count: 6, x0: -47, pitch: 6.0, zRows: [-78.4, -72.4] }
+/** Putaway staging: pallet positions in three destination groups, two rows deep. */
+export const PUTAWAY_GROUPS: { dest: string; x0: number; positions: number }[] = [{ dest: 'RES-A', x0: -116, positions: 14 }, { dest: 'RES-B', x0: -80, positions: 8 }, { dest: 'FM-1', x0: -58, positions: 8 }]
+
 /** Pack stations: two rows of 12 per pack zone facing a packed-box roller line at `lineZ`, which runs east then
  *  south to the SLAM line. Station pitch 3 m, bench 1.8 × 0.9 m at 0.9 m. */
 export const PACK = { perRow: 12, pitch: 3.0, lineZ: 29.5, rowOffset: 2.6, bench: { w: 1.8, d: 0.9, h: 0.9 } }
@@ -217,6 +223,8 @@ export const PACK_ZONES: { zone: string; type: 'single' | 'multi'; firstId: numb
 /** The takeaway belt runs west along the south edge of storage at z 18 and diverts into each pack zone;
  *  each pack zone's box line collects packed boxes and carries them south to the SLAM line at z 41. */
 export const CONVEYORS: ConveyorLine[] = [
+  // Putaway buffer: totes of decanted product from putaway staging east to the fast-mover module.
+  { id: 'CV-PUTAWAY', name: 'Putaway buffer conveyor', kind: 'belt', carries: 'tote', h: 0.85, spurs: [], points: [[-56, -62.2], [62, -62.2], [62, -48]] },
   { id: 'CV-PACK-S', name: 'Pack singles box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-107, PACK.lineZ], [-62, PACK.lineZ], [-62, 40.5]] },
   { id: 'CV-PACK-M', name: 'Pack multis box line', kind: 'roller', carries: 'box', h: 0.75, spurs: [], points: [[-17, PACK.lineZ], [28, PACK.lineZ], [28, 40.5]] },
   // SLAM line: east along z 41 through both SLAM stations, then south into the sort zone and west along z 48

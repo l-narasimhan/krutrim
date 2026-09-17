@@ -3,7 +3,7 @@
 import { rng, rand, randInt, pick, chance } from './rng'
 import {
   HALL as HALL_SPEC, HALL_X0, HALL_Z0, DOOR, MODULES, AREAS, RACK as RACK_LAYOUT, RACK_ROW_PITCH, SHELF as SHELF_LAYOUT, SHELF_ROW_PITCH,
-  doors as layoutDoors, PACK, PACK_ZONES, PUT_WALLS, SLAM_STATIONS, type StorageModule, type Area,
+  doors as layoutDoors, PACK, PACK_ZONES, PUT_WALLS, SLAM_STATIONS, RECEIVE, QC_BENCHES, type StorageModule, type Area,
 } from './layout'
 
 export { MODULES, AREAS, RACK_ROW_PITCH, SHELF_ROW_PITCH, DOOR } from './layout'
@@ -109,10 +109,14 @@ export interface Dock extends Base {
   kind: 'dock'; prefix: string; number: number; wall: 'N' | 'S'; use: string; carrier: string; trailerId: string | null
   state: DockState; progress: number; units: number; doorOpen: number; doorTarget: number; minutesAtDoor: number
 }
+export type StationType = 'single' | 'multi' | 'receive' | 'qc'
 export interface Station extends Base {
-  kind: 'station'; number: number; zone: string; type: 'single' | 'multi'; associate: string | null
+  kind: 'station'; number: number; zone: string; type: StationType; associate: string | null
+  /** Units per hour, items waiting, and units handled today, whatever the station handles. */
   rate: number; queue: number; packedToday: number; state: 'PACKING' | 'IDLE' | 'OFFLINE'
 }
+/** A fenced hold cage: what is inside, why, and for how long. */
+export interface Cage extends Base { kind: 'cage'; name: string; items: number; oldestDays: number; reasons: [string, number][] }
 export interface PutWall extends Base {
   kind: 'wall'; number: number; slots: number; filled: number; ordersOpen: number; ordersComplete: number; lit: boolean[]
 }
@@ -123,10 +127,10 @@ export interface Lane extends Base {
   units: number; gaylords: number; pallets: number; cutoff: string; fill: number; state: 'OPEN' | 'CLOSING' | 'CLOSED'
 }
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane | Cage
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]; cages: Cage[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -149,7 +153,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = [], cages: Cage[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -181,10 +185,12 @@ export function buildFacility(): Facility {
   // Zones: every area in the program, inspectable from the plan.
   for (const a of AREAS) {
     if (a.group === 'circulation') continue
-    // A zone "faces" its nearest wall, so a camera framing it approaches from the open side rather than across storage.
+    // A zone "faces" its nearest wall that leaves room for a camera (6 m or more between the zone's edge and the
+    // wall), so a camera framing it approaches from the open side rather than across storage or from inside the wall.
     const cx = a.x + a.w / 2, cz = a.z + a.d / 2
-    const toWall: [number, Vec3][] = [[cx - HALL_X0, [-1, 0, 0]], [-HALL_X0 - cx, [1, 0, 0]], [cz - HALL_Z0, [0, 0, -1]], [-HALL_Z0 - cz, [0, 0, 1]]]
-    const face = toWall.reduce((m, t) => (t[0] < m[0] ? t : m))[1]
+    const gaps: [number, Vec3][] = [[a.x - HALL_X0, [-1, 0, 0]], [-HALL_X0 - (a.x + a.w), [1, 0, 0]], [a.z - HALL_Z0, [0, 0, -1]], [-HALL_Z0 - (a.z + a.d), [0, 0, 1]]]
+    const roomy = gaps.filter(g => g[0] >= 6)
+    const face = (roomy.length ? roomy : gaps).reduce((m, t) => (t[0] < m[0] ? t : m))[1]
     const zone: Zone = {
       kind: 'zone', id: a.id, name: a.name, group: a.group, note: a.note, level: a.level, area: a,
       center: [cx, a.level ? 4.5 : 0.05, cz], size: [a.w, a.level ? 0.3 : 0.1, a.d], face,
@@ -247,8 +253,31 @@ export function buildFacility(): Facility {
     lanes.push(sort, stage); byId.set(sort.id, sort); byId.set(stage.id, stage)
   }
 
+  // Receive and decant stations RV-01…16 and QC inspection benches QC-01…06.
+  for (let i = 0; i < RECEIVE.count; i++) {
+    const staffed = chance(0.75)
+    const st: Station = { kind: 'station', id: `RV-${pad(i + 1, 2)}`, number: i + 1, zone: 'RCV', type: 'receive', associate: staffed ? pick(ASSOCIATES) : null,
+      rate: staffed ? randInt(180, 420) : 0, queue: staffed ? randInt(0, 6) : 0, packedToday: staffed ? randInt(800, 3200) : 0, state: staffed ? 'PACKING' : chance(0.5) ? 'IDLE' : 'OFFLINE',
+      center: [RECEIVE.x0 + i * RECEIVE.pitch, 1.0, RECEIVE.z], size: [3.6, 2.0, 3.0], face: [0, 0, -1] }
+    stations.push(st); byId.set(st.id, st)
+  }
+  for (let i = 0; i < QC_BENCHES.count; i++) {
+    const staffed = chance(0.7)
+    const r = Math.floor(i / 3)
+    const st: Station = { kind: 'station', id: `QC-${pad(i + 1, 2)}`, number: i + 1, zone: 'QC', type: 'qc', associate: staffed ? pick(ASSOCIATES) : null,
+      rate: staffed ? randInt(20, 60) : 0, queue: staffed ? randInt(0, 5) : 0, packedToday: staffed ? randInt(60, 300) : 0, state: staffed ? 'PACKING' : 'IDLE',
+      center: [QC_BENCHES.x0 + (i % 3) * QC_BENCHES.pitch, 1.0, QC_BENCHES.zRows[r]], size: [4.5, 2.0, 2.6], face: [0, 0, r === 0 ? 1 : -1] }
+    stations.push(st); byId.set(st.id, st)
+  }
+  // Hold cages.
+  const hold = AREAS.find(a => a.id === 'QC-HOLD')!
+  const cage: Cage = { kind: 'cage', id: 'CAGE-QC', name: 'QC reject, damage and hold cage', items: randInt(40, 160), oldestDays: randInt(3, 21),
+    reasons: [['Failed inspection', randInt(10, 60)], ['Damaged in transit', randInt(10, 50)], ['Vendor return', randInt(5, 30)], ['Mislabelled', randInt(2, 15)], ['Recall hold', randInt(0, 6)]],
+    center: [hold.x + hold.w / 2, 1.2, hold.z + hold.d / 2], size: [hold.w, 2.4, hold.d], face: [-1, 0, 0] }
+  cages.push(cage); byId.set(cage.id, cage)
+
   void rand
-  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, cages, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.

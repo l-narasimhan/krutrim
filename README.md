@@ -32,6 +32,9 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
 - **Docks.** 62 doors (26 inbound, 4 returns, 2 waste, 30 outbound with carrier lanes), each with sectional
   door, leveler, bumpers, seal, dock light, restraint and number plate; 42 doors have a 53 ft dry van whose
   cargo tracks its load or unload progress.
+- **Inbound band.** Striped staging lanes behind every inbound door with pallets and pallet jacks, 16 receive and
+  decant stations, six QC benches with pass and fail lanes, a chain-link hold cage, putaway staging positions by
+  destination, and a buffer conveyor carrying totes to the fast-mover module.
 - **Takeaway conveyor and pack.** 168 m of 24 in belt conveyor along the south edge of storage with spurs into
   each pack zone; totes ride it continuously. 48 pack stations in two rows per pack zone, fully equipped and
   inspectable, with roller box lines carrying packed boxes to two SLAM stations (scale, scan tunnel,
