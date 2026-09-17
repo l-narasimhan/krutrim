@@ -1,0 +1,21 @@
+{
+  "name": "fc-twin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fulcrum Twin — a real-time 3D digital twin of a fulfillment center (Three.js, 1 unit = 1 metre)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "plan": "node --experimental-strip-types scripts/plan-svg.ts"
+  },
+  "dependencies": {
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.184.0",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0"
+  }
+}

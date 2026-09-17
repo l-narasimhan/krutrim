@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fulcrum Twin · Spatial Ops</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand"><span class="mark"></span><span class="name">FULCRUM <em>TWIN</em></span><span class="sub">SPATIAL OPS · POC · BUILD 0.1.0</span></div>
+      <div class="tb"><label>FACILITY</label><span>FC-DFW7 · BLDG A · MOD 1</span></div>
+      <div class="tb"><label>FEED</label><span class="live"><i></i>LIVE 1.0s</span></div>
+      <div class="tb"><label>UTC</label><span id="clock">--:--:--</span></div>
+      <div class="spacer"></div>
+      <div class="tb"><label>FOCUS LOCATION</label><input id="focus" list="ids" placeholder="RA-07-012 · FM-03-018-C05 · OB-15 · SLAM" spellcheck="false" /><datalist id="ids"></datalist></div>
+      <button id="btn-focus" class="btn accent">FOCUS <kbd>F</kbd></button>
+      <button id="btn-brief" class="btn">SYSTEM BRIEF</button>
+    </header>
+
+    <nav id="leftnav">
+      <button class="nav on" data-layer="overview"><i>1</i><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Zm-8 9 8 4 8-4M4 16l8 4 8-4"/></svg>OVERVIEW</button>
+      <button class="nav" data-layer="inventory" disabled><i>2</i><svg viewBox="0 0 24 24"><path d="M3 7h18v13H3zM3 7l3-4h12l3 4M9 12h6"/></svg>INVENTORY</button>
+      <button class="nav" data-layer="flow" disabled><i>3</i><svg viewBox="0 0 24 24"><path d="M3 12h14m0 0-4-4m4 4-4 4M3 6h8M3 18h8"/></svg>FLOW</button>
+      <button class="nav" data-layer="labor" disabled><i>4</i><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>LABOR</button>
+      <button class="nav" data-layer="safety" disabled><i>5</i><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/></svg>SAFETY</button>
+      <div class="navfoot">?</div>
+    </nav>
+
+    <main id="viewport">
+      <canvas id="gl"></canvas>
+      <div id="kpis">
+        <div class="kpi"><label>OUTBOUND UNITS/HR</label><b id="k-uph">—</b><small id="k-uph-s">shift target 14,000</small></div>
+        <div class="kpi"><label>ORDERS IN QUEUE</label><b id="k-queue">—</b><small id="k-queue-s">oldest 41 min</small></div>
+        <div class="kpi"><label>PICK RATE</label><b id="k-pick">—</b><small>UPH · 38 pickers on floor</small></div>
+        <div class="kpi"><label>DOCK UTILISATION</label><b id="k-dock">—</b><small id="k-dock-s">— of 62 doors occupied</small></div>
+        <div class="kpi"><label>INVENTORY ACCURACY</label><b id="k-acc">—</b><small>cycle count · 24 h</small></div>
+      </div>
+      <div id="alerts"><label>ACTIVE ALERTS</label><b>2</b><small id="alert-s">—</small></div>
+      <div id="layer-title"><b>OVERVIEW</b> full hall · 62 docks · reserve racking A and B · fast-mover module FM-1</div>
+      <div id="tooltip" hidden></div>
+      <div id="walk-hint" hidden><b>FIRST PERSON</b> W A S D or arrows to walk · mouse to look · Shift to jog · click to select · Esc to release the mouse</div>
+      <div id="cambar">
+        <button class="cam on" data-cam="orbit">ORBIT</button>
+        <button class="cam" data-cam="aisle">AISLE</button>
+        <button class="cam" data-cam="pick">PICK</button>
+        <button class="cam" data-cam="dock">DOCK</button>
+        <button class="cam" data-cam="plan">PLAN</button>
+        <button class="cam" data-cam="walk">WALK</button>
+        <button class="cam" data-cam="reset">RESET</button>
+        <span class="sep"></span>
+        <button class="cam act" id="btn-pull" disabled>PULL PALLETS</button>
+        <button class="cam act" id="btn-door">CLOSE DOOR</button>
+        <span class="sep"></span>
+        <span id="stats">— fps · — draw calls · — tris</span>
+      </div>
+      <div id="loading">LOADING ENVIRONMENT<span class="dots"></span></div>
+    </main>
+
+    <aside id="inspector">
+      <div class="ins-head"><label id="ins-kind">INSPECTOR</label><h2 id="ins-id">NOTHING SELECTED</h2><span id="ins-status" class="chip"></span></div>
+      <div id="ins-body"><p class="muted">Hover any rack bay, bin, dock door or floor zone for a readout. Click to inspect. Press <kbd>F</kbd> to fly to it, <kbd>W</kbd> to walk to it.</p></div>
+    </aside>
+
+    <section id="events">
+      <div class="ev-head"><label>EVENT STREAM</label>
+        <div class="filters"><button class="f on" data-f="all">ALL</button><button class="f" data-f="warn">WARN+</button><button class="f" data-f="crit">CRIT</button></div>
+        <span id="ev-count" class="muted">0 events</span>
+      </div>
+      <ul id="ev-list"></ul>
+    </section>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
