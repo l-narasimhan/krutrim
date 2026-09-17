@@ -71,7 +71,7 @@ button { font-family: var(--mono); cursor: pointer; }
 #tooltip dt { color: var(--dim); font-size: 9px; } #tooltip dd { margin: 0; font-size: 9.5px; text-align: right; }
 #tooltip .hint { margin-top: 6px; font-size: 8px; color: var(--dim); letter-spacing: 0.08em; }
 .ok { color: var(--ok); } .warn { color: var(--warn); } .crit { color: var(--crit); }
-#cambar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: rgba(9,13,19,0.88); border: 1px solid var(--line2); padding: 5px; }
+#cambar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 24px); align-items: center; gap: 4px; background: rgba(9,13,19,0.88); border: 1px solid var(--line2); padding: 5px; }
 .cam { background: transparent; border: 1px solid transparent; color: var(--text); font-size: 9px; letter-spacing: 0.12em; padding: 6px 10px; }
 .cam:hover { border-color: var(--line2); }
 .cam.on { background: rgba(255,255,255,0.08); border-color: var(--line2); }
