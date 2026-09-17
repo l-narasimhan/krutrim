@@ -119,8 +119,9 @@ export class CameraRig {
     // Offset a little to the side of the face direction so the view is three-quarter, not head-on.
     const sx = -face[2], sz = face[0]
     const pos: Vec3 = [center[0] + face[0] * dist * 0.85 + sx * dist * 0.35, Math.min(center[1], 4) + dist * 0.45, center[2] + face[2] * dist * 0.85 + sz * dist * 0.35]
-    // Stay inside the hall so a wall never ends up between the camera and the target.
+    // Stay inside the hall, and under the roof, so nothing ends up between the camera and the target.
     pos[0] = THREE.MathUtils.clamp(pos[0], -HALL.w / 2 + 1, HALL.w / 2 - 1)
+    pos[1] = Math.min(pos[1], HALL.clearH - 1.5)
     pos[2] = THREE.MathUtils.clamp(pos[2], -HALL.d / 2 + 1, HALL.d / 2 - 1)
     this.flyTo(pos, t, 1.0)
   }

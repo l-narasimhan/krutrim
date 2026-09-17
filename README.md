@@ -44,6 +44,7 @@ Location IDs: `RA-07-012` rack bay (module, aisle, bay; odd bays west of the ais
 |---|---|
 | Orbit | drag · scroll · right-drag to pan |
 | Camera presets | ORBIT · AISLE · PICK · DOCK · PLAN · WALK · RESET buttons, or `O` / `P` keys |
+| Guided tour | TOUR: 44 stops from the inbound docks through every area, PREV / NEXT / END TOUR, `Esc` ends |
 | Bird's-eye | PLAN (orthographic, drag to pan, scroll to zoom) |
 | First person | WALK, then `W A S D` or arrows, mouse to look, `Shift` to jog, `Esc` to release the mouse |
 | Inspect | hover for a readout, click to open the inspector |
@@ -51,7 +52,7 @@ Location IDs: `RA-07-012` rack bay (module, aisle, bay; odd bays west of the ais
 | Walk to selection | WALK TO in the inspector |
 | Pull pallets out of a bay | PULL PALLETS (select a bay first) |
 | Open / close the dock door | OPEN DOOR / CLOSE DOOR |
-| Deep links | `#view=aisle`, `#select=FM-03-018-C05&fly`, `#walk=x,z,yaw`, `#select=RA-07-012&pull`, `#select=OB-15&door=0` |
+| Deep links | `#view=aisle`, `#select=FM-03-018-C05&fly`, `#walk=x,z,yaw`, `#select=RA-07-012&pull`, `#select=OB-15&door=0`, `#tour=12` |
 
 ## Assets
 

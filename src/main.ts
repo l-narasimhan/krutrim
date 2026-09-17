@@ -9,6 +9,7 @@ import { Shelving } from './scene/shelving'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
+import { Tour } from './tour'
 
 const canvas = document.getElementById('gl') as HTMLCanvasElement
 const viewport = document.getElementById('viewport')!
@@ -86,8 +87,10 @@ function walkTo(e: Entity) {
   const yaw = Math.atan2(e.face[0], e.face[2])
   rig.setMode('walk', { pos, yaw })
 }
-/** Bins sit on a 1.4 m cart aisle, so the camera stays inside it; everything else gets the default standoff. */
-const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : undefined)
+/** Standoff by kind: bins sit on a 1.4 m cart aisle so the camera stays inside it; docks read best from a
+ *  few metres back; zones from far enough to see the whole outline but never from above the roof. */
+const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
+const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, standoff(e))
 const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.doorTarget ? 0 : 1; e.state = e.doorTarget ? (e.trailerId ? e.state : 'EMPTY') : 'CLOSED'; building.animateDoor(e); ui.select(e); syncDoorButton() } }
 
 ui.onAction = (a, e) => {
@@ -110,7 +113,10 @@ const presets: Record<string, () => void> = {
   plan: () => rig.setMode('plan'),
   walk: () => rig.setMode('walk', { pos: [aisleX(resA, 2), 1.7, resA.z + resA.d + 3], yaw: 0 }),
 }
-document.querySelectorAll<HTMLButtonElement>('.cam[data-cam]').forEach(b => b.onclick = () => presets[b.dataset.cam!]())
+document.querySelectorAll<HTMLButtonElement>('.cam[data-cam]').forEach(b => b.onclick = () => { tour.end(); presets[b.dataset.cam!]() })
+// Guided tour: inbound docks to every corner, in process order. Each stop frames and selects the entity.
+const tour = new Tour(facility, 7, e => { select(e); flyTo(e) }, () => {})
+document.getElementById('btn-tour')!.onclick = () => (tour.active ? tour.end() : tour.start())
 rig.onModeChange = (m: Mode) => {
   document.querySelectorAll<HTMLButtonElement>('.cam[data-cam]').forEach(b => b.classList.toggle('on', b.dataset.cam === m))
   viewport.classList.toggle('walk', m === 'walk')
@@ -135,6 +141,7 @@ document.getElementById('btn-brief')!.onclick = () => alert(`FC-DFW7 · full hal
 window.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).tagName === 'INPUT') return
   if (e.key === 'f' || e.key === 'F') { if (ui.selected) flyTo(ui.selected) }
+  if (e.key === 'Escape' && tour.active) { tour.end(); return }
   if (e.key === 'Escape') { if (rig.mode === 'walk' && !document.pointerLockElement) presets.orbit(); else if (rig.mode !== 'walk') select(null) }
   if (e.key === 'p' || e.key === 'P') presets.plan()
   if (e.key === 'o' || e.key === 'O') presets.orbit()
@@ -145,6 +152,7 @@ syncDoorButton()
 function applyHash() {
   const h = new URLSearchParams(location.hash.slice(1))
   const v = h.get('view'); if (v && presets[v]) presets[v]()
+  if (h.has('tour')) { tour.start(); tour.go(Number(h.get('tour')) || 0) }
   const s = h.get('select'); const e = s ? facility.byId.get(s.toUpperCase()) : null
   if (e) select(e)
   if (h.has('fly') && e) flyTo(e)
@@ -165,6 +173,7 @@ function frame(now: number) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now
   fpsAcc += dt; fpsN++
   if (fpsAcc >= 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0 }
+  tour.update(dt)
   rig.update(dt)
   followKey(rig.mode === 'walk' ? rig.walkPosition : rig.controls.target)
   building.update(dt)

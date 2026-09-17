@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (3.7 built: every rack bay's two pick levels fitted out and scannable; 0.2 and 3.7 in REVIEW).
+Updated every time a task changes state. Last update: 2026-09-17 (0.2, 3.7 and 10.4 signed off as DONE).
 
 **Status legend**
 
@@ -20,26 +20,26 @@ Updated every time a task changes state. Last update: 2026-09-17 (3.7 built: eve
 
 | Milestone | Tasks | DONE | REVIEW | WIP | POC | TODO |
 |---|---|---|---|---|---|---|
-| 0 Foundations | 4 | 0 | 1 | 0 | 3 | 0 |
+| 0 Foundations | 4 | 1 | 0 | 0 | 3 | 0 |
 | 1 Building shell and yard | 8 | 0 | 0 | 0 | 5 | 3 |
 | 2 Inbound | 9 | 0 | 0 | 0 | 2 | 7 |
-| 3 Reserve storage and rack picking | 7 | 0 | 1 | 0 | 3 | 3 |
+| 3 Reserve storage and rack picking | 7 | 1 | 0 | 0 | 3 | 3 |
 | 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
 | 5 Pack, SLAM, manual sort | 6 | 0 | 0 | 0 | 0 | 6 |
 | 6 Outbound | 3 | 0 | 0 | 0 | 0 | 3 |
 | 7 Returns | 4 | 0 | 0 | 0 | 0 | 4 |
 | 8 Supporting areas | 9 | 0 | 0 | 0 | 0 | 9 |
 | 9 People | 5 | 0 | 0 | 0 | 0 | 5 |
-| 10 Navigation | 5 | 0 | 0 | 0 | 3 | 2 |
+| 10 Navigation | 5 | 1 | 0 | 0 | 3 | 1 |
 | 11 Console | 5 | 0 | 0 | 0 | 4 | 1 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **0** | **2** | **0** | **25** | **53** |
+| **Total** | **80** | **3** | **0** | **0** | **25** | **52** |
 
 ## Next up
 
-0.2 and 3.7 are built and in REVIEW (screenshots in `docs/hall/`). Sign them off after a look, then:
-1.1 → 1.2 → 3.1 → 3.2 → 4.1 → 4.2 → 4.3, then people, docks and the flow areas.
+Next: 1.1 → 1.2 → 3.1 → 3.2 → 4.1 → 4.2 → 4.3, then people, docks and the flow areas. Each POC task gets its
+side-by-side photo check as it is taken up.
 
 Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in this folder and open http://localhost:5180.
 
@@ -50,7 +50,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 0.1 | App shell: Vite + TS + Three.js, canvas, render loop, resize, fps / draw call / triangle counter | S | POC | Blank lit scene at 60 fps | Working in POC |
-| 0.2 | Facility data model: full big-hall layout with every area in the PLAN.md area program, zones, naming conventions, seeded generator for every location ID | L | REVIEW | `buildFacility()` returns every entity with position and size; labelled plan diagram approved by you | Plan approved 2026-09-17 and built the same day. `src/layout.ts` is the source (800 × 600 ft, 62 doors with carriers, 52 areas); `buildFacility()` returns 1,470 rack bays with reserve slots C–E and pick faces A–B, 10,400 bins, 62 docks, 47 zones, all with world position, size and face. Modules are built in a local frame and rotated so rows run north–south. Pick faces have IDs but no fit-out until 3.7 |
+| 0.2 | Facility data model: full big-hall layout with every area in the PLAN.md area program, zones, naming conventions, seeded generator for every location ID | L | DONE | `buildFacility()` returns every entity with position and size; labelled plan diagram approved by you | Plan approved 2026-09-17 and built the same day. `src/layout.ts` is the source (800 × 600 ft, 62 doors with carriers, 52 areas); `buildFacility()` returns 1,470 rack bays with reserve slots C–E and pick faces A–B, 10,400 bins, 62 docks, 47 zones, all with world position, size and face. Modules are built in a local frame and rotated so rows run north–south. Pick faces fitted out in 3.7. Signed off by Lan 2026-09-17 |
 | 0.3 | Renderer and lighting rig: ACES, physically based lights, shadow key light, HDRI environment, fog | M | POC | Test steel box looks like painted steel under warehouse light | Needs bloom and AO later (12.1, 12.2) |
 | 0.4 | Camera system: orbit, smooth fly-to, named presets, frame-an-entity | M | POC | Presets animate cleanly; framing fits any object | Camera clamped inside the hall |
 
@@ -86,7 +86,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 3.1 | Racking structure: teardrop uprights, orange step beams, wire decking, footplates, row spacers, guards; instanced | L | POC | Full reserve block in under 40 draw calls | RES-A (25 rows × 24 bays) and RES-B (9 × 15) with cross aisles, about 12 draw calls per module; punching is a bump map, beams lack safety locks and end connectors; aisle-end guards not yet placed on the full modules |
-| 3.7 | Rack pick levels (hybrid): levels 1–2 of every bay fitted with bins, carton-flow lanes or hand-stack shelves, each pick face barcoded; pallet reserve above | L | REVIEW | Any bay shows pick faces below and reserve pallets above; a pick face scans | Built 2026-09-17 (`scene/pickfaces.ts`): 3,012 faces are entities with product, qty, capacity and velocity; fit-out per bay is hand-stack (cut cases + reserve cases), carton flow (3 roller lanes, 120 mm drop, queued cases) or 6 × 18 in hopper bins; face labels on the level-B beam, bay placard moved to the level-C beam; click or focus a face to scan it. Realism check against photos pending |
+| 3.7 | Rack pick levels (hybrid): levels 1–2 of every bay fitted with bins, carton-flow lanes or hand-stack shelves, each pick face barcoded; pallet reserve above | L | DONE | Any bay shows pick faces below and reserve pallets above; a pick face scans | Built 2026-09-17 (`scene/pickfaces.ts`): 3,012 faces are entities with product, qty, capacity and velocity; fit-out per bay is hand-stack (cut cases + reserve cases), carton flow (3 roller lanes, 120 mm drop, queued cases) or 6 × 18 in hopper bins; face labels on the level-B beam, bay placard moved to the level-C beam; click or focus a face to scan it. Signed off by Lan 2026-09-17 |
 | 3.2 | Pallets and loads: GMA pallets, wrapped load variants, cardboard texture, LPN labels | M | POC | No two adjacent loads look identical | Film is a translucent box; needs wrap creases and corner boards |
 | 3.3 | Bay inspection: tooltip, inspector with slot grid, pull-pallets action | M | POC | Any bay clickable and pullable | Working |
 | 3.4 | Forklifts and reach trucks: detailed models, parked and driving with mast animation | M | TODO | A truck drives an aisle and stops at a bay | |
@@ -164,7 +164,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | 10.1 | Bird's-eye: orthographic plan, pan and zoom, labels legible, click to inspect or dive | M | POC | Whole FC readable at a glance | Works for the slice; roof hides in plan |
 | 10.2 | First person: eye height, arrows and WASD, mouse look, jog, collision | M | POC | Walk the whole pick path without clipping | Working; collision is box-based |
 | 10.3 | Mini-map in first person with position and heading | S | TODO | Dot tracks the walker | |
-| 10.4 | Presets and guided tour of the inbound-to-outbound route | S | TODO | Tour completes without collision | Presets exist; no tour |
+| 10.4 | Presets and guided tour of the inbound-to-outbound route | S | DONE | Tour completes without collision | Built 2026-09-17: TOUR button flies 44 stops from the inbound docks through every area in process order, then returns and support, selecting each in the inspector with a caption; prev / next / end, Esc ends; `#tour=N` deep link (`src/tour.ts`). Signed off by Lan 2026-09-17 |
 | 10.5 | Arrow traversal in every mode: arrows walk in first person, move the orbit camera along the floor, pan the plan view; on-screen arrow pad for mouse and touch | S | POC | Arrows move you in all three modes | Arrows work in first person only |
 
 ## 11 Console

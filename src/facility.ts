@@ -167,9 +167,13 @@ export function buildFacility(): Facility {
   // Zones: every area in the program, inspectable from the plan.
   for (const a of AREAS) {
     if (a.group === 'circulation') continue
+    // A zone "faces" its nearest wall, so a camera framing it approaches from the open side rather than across storage.
+    const cx = a.x + a.w / 2, cz = a.z + a.d / 2
+    const toWall: [number, Vec3][] = [[cx - HALL_X0, [-1, 0, 0]], [-HALL_X0 - cx, [1, 0, 0]], [cz - HALL_Z0, [0, 0, -1]], [-HALL_Z0 - cz, [0, 0, 1]]]
+    const face = toWall.reduce((m, t) => (t[0] < m[0] ? t : m))[1]
     const zone: Zone = {
       kind: 'zone', id: a.id, name: a.name, group: a.group, note: a.note, level: a.level, area: a,
-      center: [a.x + a.w / 2, a.level ? 4.5 : 0.05, a.z + a.d / 2], size: [a.w, a.level ? 0.3 : 0.1, a.d], face: [0, 0, 1],
+      center: [cx, a.level ? 4.5 : 0.05, cz], size: [a.w, a.level ? 0.3 : 0.1, a.d], face,
     }
     zones.push(zone); byId.set(zone.id, zone)
   }
