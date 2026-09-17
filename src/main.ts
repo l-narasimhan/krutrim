@@ -118,6 +118,13 @@ function startOrder() {
   rig.frame(trace.position, [1, 1, 1], [0, 0, 1], 4.5)
   rig.follow = () => trace.position
 }
+const flowSel = document.getElementById('sel-flow') as HTMLSelectElement
+flowSel.onchange = () => {
+  const m = flowSel.value as 'conveyor' | 'walk'
+  people.setFlowMode(m); trace.mode = m
+  if (trace.active) trace.end()
+  ui.log('WMS', m === 'walk' ? 'Flow mode: walk-to-drop · pickers carry totes to the pack drop' : 'Flow mode: conveyor · pickers induct totes on the takeaway belt')
+}
 document.getElementById('btn-order')!.onclick = () => (trace.active ? trace.end() : startOrder())
 document.querySelector<HTMLButtonElement>('#tour [data-tour="end"]')!.addEventListener('click', () => { if (trace.active) trace.end() })
 
@@ -207,6 +214,7 @@ function applyHash() {
   const h = new URLSearchParams(location.hash.slice(1))
   const v = h.get('view'); if (v && presets[v]) presets[v]()
   if (h.has('tour')) { tour.start(); tour.go(Number(h.get('tour')) || 0) }
+  if (h.get('flow') === 'walk') { flowSel.value = 'walk'; people.setFlowMode('walk'); trace.mode = 'walk' }
   if (h.has('order')) startOrder()
   const s = h.get('select'); const e = s ? facility.byId.get(s.toUpperCase()) : null
   if (e) select(e)

@@ -18,6 +18,7 @@ Nothing gets built until a task is picked from that list and approved.
 | Views | Bird's-eye orthographic plan view + first-person walk. **Arrow keys traverse in every mode** (walk, orbit, plan) and on-screen arrow buttons do the same for mouse and touch. |
 | Stack | Vite + TypeScript + plain Three.js, HTML/CSS console, 1 unit = 1 metre |
 | Data | Simulated first; live-data adapter is a later phase |
+| Flow mode | **Two selectable flows (agreed 2026-09-17):** conveyor, the default, where pickers induct totes on the takeaway belt; and walk-to-drop, as smaller manual FCs run, where pickers carry finished totes around the storage block to a pack drop point and packers collect them. The belt stays in place in both. |
 | Docks | **Flow-through (agreed 2026-09-17):** 26 inbound, 4 returns and 2 waste doors on the north wall; 30 outbound doors on the south wall. 62 doors total. |
 | Carriers | **Outbound lanes OB-01…30, west to east (agreed 2026-09-17):** UPS 10, FedEx 8, USPS 6, regional and LTL 6. |
 | Shift | **60 associates on the floor at once (agreed 2026-09-17)**, across pick, pack, receive, returns and forklifts. |

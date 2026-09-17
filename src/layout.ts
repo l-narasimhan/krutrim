@@ -213,6 +213,13 @@ export const QC_BENCHES = { count: 6, x0: -47, pitch: 6.0, zRows: [-78.4, -72.4]
 /** Putaway staging: pallet positions in three destination groups, two rows deep. */
 export const PUTAWAY_GROUPS: { dest: string; x0: number; positions: number }[] = [{ dest: 'RES-A', x0: -116, positions: 14 }, { dest: 'RES-B', x0: -80, positions: 8 }, { dest: 'FM-1', x0: -58, positions: 8 }]
 
+/** How picked totes reach pack: on the takeaway conveyor (default), or carried by the picker to a pack drop point,
+ *  as smaller manual FCs without a takeaway belt run. Both are supported; the flow mode switch is in the console. */
+export type FlowMode = 'conveyor' | 'walk'
+/** Pack drop points for walk mode: a striped square with a tote stack at the near end of each pack zone. Pickers
+ *  from reserve racking A use the west drop, pickers from the fast-mover module the east one. */
+export const TOTE_DROPS: { id: string; x: number; z: number; from: string }[] = [{ id: 'DROP-W', x: -112.5, z: 24.5, from: 'RES-A' }, { id: 'DROP-E', x: 52.5, z: 24.5, from: 'FM-1' }]
+
 /** Pack stations: two rows of 12 per pack zone facing a packed-box roller line at `lineZ`, which runs east then
  *  south to the SLAM line. Station pitch 3 m, bench 1.8 × 0.9 m at 0.9 m. */
 export const PACK = { perRow: 12, pitch: 3.0, lineZ: 29.5, rowOffset: 2.6, bench: { w: 1.8, d: 0.9, h: 0.9 } }

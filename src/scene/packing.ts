@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { Station } from '../facility'
-import { PACK } from '../layout'
+import { PACK, TOTE_DROPS } from '../layout'
 import { Tex } from '../assets'
 import { boxAt, cylAt, merged, setInstance } from './util'
 import { makeToteGeometry } from './conveyor'
@@ -79,6 +79,16 @@ export class Packing {
       this.colliders.push(new THREE.Box3(new THREE.Vector3(st.center[0] - w / 2 - 0.8, 0, st.center[2] - d / 2 - 0.1), new THREE.Vector3(st.center[0] + w / 2 + 0.8, 1.5, st.center[2] + d / 2 + 0.1)))
     })
     flats.count = fi; wip.count = wi
+    // Pack drop points for walk mode: a 2 × 2 m striped square, a sign, and a stack of empty totes beside it.
+    const paint: THREE.BufferGeometry[] = []
+    const dropTotes = new THREE.InstancedMesh(makeToteGeometry(), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 }), TOTE_DROPS.length * 5)
+    TOTE_DROPS.forEach((d, k) => {
+      for (const [w, dd, ox, oz] of [[2.2, 0.1, 0, -1.05], [2.2, 0.1, 0, 1.05], [0.1, 2.2, -1.05, 0], [0.1, 2.2, 1.05, 0]]) paint.push(boxAt(w, 0.001, dd, d.x + ox, 0.004, d.z + oz))
+      this.text.add('PACK DROP', 0.32, d.x, 0.006, d.z + 1.55, { flat: true, color: 0xf2c200 })
+      for (let i = 0; i < 5; i++) { setInstance(dropTotes, k * 5 + i, d.x + 1.6, 0.26 * i, d.z, 1, 1, 1, 0, Math.PI / 2, 0); dropTotes.setColorAt(k * 5 + i, tint.setHex(i % 2 ? 0x9a9d9f : 0xe0b400)) }
+    })
+    const pm = new THREE.Mesh(merged(paint, M.paintYellow, false).geometry, M.paintYellow); pm.receiveShadow = true
+    this.group.add(pm, dropTotes)
     this.text.commit()
     const laminate = new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.5 })
     const screenMat = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x6fb6ff, emissiveIntensity: 1.2, roughness: 0.3 })

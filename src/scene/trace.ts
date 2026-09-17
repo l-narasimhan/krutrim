@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { CONVEYORS, PACK } from '../layout'
+import { CONVEYORS, PACK, TOTE_DROPS, type FlowMode } from '../layout'
 import type { Facility, Person, Vec3, Lane, Station } from '../facility'
 import { makePath, along, makeToteGeometry, type Path } from './conveyor'
 import { rng } from '../rng'
@@ -21,6 +21,7 @@ export class OrderTrace {
   position: Vec3 = [0, 0, 0]
   onEvent?: (src: string, msg: string) => void
   onDone?: () => void
+  mode: FlowMode = 'conveyor'
   private stage: Stage = 'waiting'
   private t = 0
   private s = 0
@@ -59,7 +60,8 @@ export class OrderTrace {
   start() {
     const pickers = this.f.people.filter(p => p.role === 'picker' && !p.onBreak && p.zone === 'RES-A')
     this.picker = pickers[Math.floor(rng() * pickers.length)]
-    this.station = this.f.stations.filter(s => s.type === 'single' && s.state === 'PACKING' && s.face[2] > 0).sort((a, b) => Math.abs(a.center[0] + 85) - Math.abs(b.center[0] + 85))[0]
+    const nearX = this.mode === 'walk' ? TOTE_DROPS[0].x : -85
+    this.station = this.f.stations.filter(s => s.type === 'single' && s.state === 'PACKING' && s.face[2] > 0).sort((a, b) => Math.abs(a.center[0] - nearX) - Math.abs(b.center[0] - nearX))[0]
     const sorts = this.f.lanes.filter(l => l.role === 'sort' && l.state !== 'CLOSED')
     this.lane = sorts[Math.floor(rng() * sorts.length)]
     this.orderId = String(Math.floor(1000000 + rng() * 8999999))
@@ -67,7 +69,7 @@ export class OrderTrace {
     this.el.hidden = false
     this.el.querySelector('.tour-head b')!.textContent = 'FOLLOWING ORDER ' + this.orderId
     for (const k of ['prev', 'next']) (this.el.querySelector(`[data-tour="${k}"]`) as HTMLElement).hidden = true
-    this.caption(`Order ${this.orderId} · picking`, `${this.picker.name} is picking this order in ${this.picker.zone}. The tote rides on the cart until the aisle is done.`)
+    this.caption(`Order ${this.orderId} · picking`, `${this.picker.name} is picking this order in ${this.picker.zone}. The tote rides on the cart until the aisle is done${this.mode === 'walk' ? ', then gets carried to the pack drop' : ''}.`)
     this.onEvent?.('WMS', `Order ${this.orderId} released · single · ${this.lane.carrier} · cut-off ${this.lane.cutoff}`)
   }
 
@@ -82,6 +84,13 @@ export class OrderTrace {
   /** The picker dropped a tote: if it is ours, it leaves the cart and joins the belt. */
   dropped(p: Person, at: [number, number]) {
     if (!this.active || this.stage !== 'cart' || p !== this.picker) return
+    if (this.mode === 'walk') {
+      this.position = [at[0], 0.9, at[1]]
+      this.stage = 'toBench'; this.t = 0
+      this.caption(`Order ${this.orderId} · at the pack drop`, `${p.name} carried the tote around the racking to the pack drop. ${this.station!.associate} collects it for ${this.station!.id}.`)
+      this.onEvent?.('RF', `Order ${this.orderId} · tote dropped at pack drop · ${p.name}`)
+      return
+    }
     this.stage = 'belt'; this.s = Math.abs(at[0] - this.take.pts[0].x); this.t = 0
     this.caption(`Order ${this.orderId} · on the takeaway belt`, `Tote inducted at aisle ${p.zone === 'RES-A' ? at[0].toFixed(0) : ''}. It rides west to the pack singles spur.`)
     this.onEvent?.('RF', `Order ${this.orderId} · tote inducted on takeaway · ${p.name}`)

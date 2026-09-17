@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RACK, PALLET, MODULES, AREAS, aisleV, type Facility, type Person, type Truck, type PickFace, type Role } from '../facility'
+import { TOTE_DROPS, type FlowMode } from '../layout'
 import { boxAt, cylAt, setInstance, mergeAny } from './util'
 import { makeToteGeometry } from './conveyor'
 import { makePalletGeometry } from './racking'
@@ -138,6 +139,7 @@ export class People {
   private truckLoad: THREE.InstancedMesh
   private tmpM = new THREE.Matrix4()
   private tmpV = new THREE.Vector3()
+  mode: FlowMode = 'conveyor'
 
   constructor(private f: Facility, M: Mats) {
     const n = f.people.length
@@ -234,6 +236,11 @@ export class People {
       a.cart = cart++
       a.steps = this.pickLoop(p, m.id, x, m.z, m.z + m.d, inFm)
     })
+    this.pickerLoop = (a: Actor) => {
+      const inFm = a.p.zone === 'FM-1'
+      const m = inFm ? fm1 : resA
+      return this.pickLoop(a.p, m.id, a.steps.length && a.steps[0].kind === 'walk' ? a.steps[0].to[0] : a.x, m.z, m.z + m.d, inFm)
+    }
     // Packers, receivers and QC work their stations.
     for (const role of ['packer', 'receiver', 'qc'] as const) byRole(role).forEach(p => {
       const st = p.station ? f.byId.get(p.station) : null
@@ -299,7 +306,17 @@ export class People {
     })
   }
 
-  /** A picker's loop: walk the aisle stopping at faces to scan and pick, drop the tote at the takeaway belt, go back. */
+  private pickerLoop: ((a: Actor) => Step[]) | null = null
+
+  /** Switch how totes reach pack. Pickers restart their loops from the aisle mouth; everyone else is unaffected. */
+  setFlowMode(mode: FlowMode) {
+    if (mode === this.mode) return
+    this.mode = mode
+    for (const a of this.actors) if (a.cart >= 0 && !a.p.onBreak && this.pickerLoop) { a.steps = this.pickerLoop(a); a.i = 0; a.stepT = 0; a.scanned = false }
+  }
+
+  /** A picker's loop: walk the aisle stopping at faces to scan and pick, then hand the tote off: onto the takeaway
+   *  belt in conveyor mode, or carried around the storage block to the pack drop in walk mode, and back. */
   private pickLoop(p: Person, module: string, x: number, zNorth: number, zSouth: number, shelf: boolean): Step[] {
     const steps: Step[] = []
     const stops = 5 + Math.floor(rng() * 3)
@@ -319,6 +336,18 @@ export class People {
         const facing = bin && bin.face[0] > 0 ? -Math.PI / 2 : Math.PI / 2
         steps.push({ kind: 'hold', pose: 'scan', dur: 1.0, task: bin ? `Scanning ${bin.id}` : 'Scanning bin', facing }, { kind: 'hold', pose: 'pick', dur: 1.2 + rng(), task: bin ? `Picking ${bin.product} at ${bin.id}` : 'Picking', facing }, { kind: 'hold', pose: 'place', dur: 0.7, facing })
       }
+    }
+    if (this.mode === 'walk') {
+      // Carry the tote to the pack drop: west of the racking for RES-A, down the centre aisle for FM-1, then back.
+      const drop = TOTE_DROPS.find(d => d.from === (shelf ? 'FM-1' : 'RES-A'))!
+      const out: [number, number][] = shelf
+        ? [[x, -36], [42, -36], [42, 15.5], [drop.x, 15.5], [drop.x, drop.z - 1.4]]
+        : [[x, 15.5], [-120, 15.5], [-120, drop.z - 1.4], [drop.x - 1.4, drop.z - 1.4]]
+      for (const pt of out) steps.push({ kind: 'walk', to: pt, speed: JOG_CART })
+      steps.push({ kind: 'drop', at: [drop.x, drop.z] })
+      for (const pt of [...out].reverse().slice(1)) steps.push({ kind: 'walk', to: pt, speed: JOG_CART })
+      steps.push({ kind: 'walk', to: [x, zSouth - 1], speed: JOG_CART })
+      return steps
     }
     // South end: to the takeaway belt, drop the tote, come back to the aisle mouth.
     const beltZ = shelf ? -37.2 : 17.3
@@ -351,7 +380,7 @@ export class People {
       a.x += dx / d * step; a.z += dz / d * step; a.yaw = Math.atan2(dx, dz)
       a.phase += step * 3.4
       a.pose = 'walk'
-      if (a.cart >= 0) a.p.task = a.p.task.startsWith('Walking') ? a.p.task : a.p.task
+      if (a.cart >= 0 && this.mode === 'walk' && a.i > a.steps.length - 12 && a.i < a.steps.length - 6) a.p.task = 'Carrying tote to the pack drop'
     } else if (s.kind === 'scan') {
       a.pose = 'scan'; a.p.scanning = true
       const fc = s.face
@@ -366,8 +395,8 @@ export class People {
       if (s.pose === 'scan') a.p.scanning = true
       if (a.stepT > s.dur) finish()
     } else if (s.kind === 'drop') {
-      a.pose = 'place'; a.yaw = Math.atan2(s.at[0] - a.x, s.at[1] - a.z); a.p.task = 'Dropping tote on takeaway conveyor'
-      if (a.stepT > 0.5 && !a.scanned) { a.scanned = true; this.onEvent?.('RF', `Tote T${Math.floor(100000 + rng() * 899999)} inducted · takeaway · ${a.p.name}`); this.onDrop?.(a.p, s.at) }
+      a.pose = 'place'; a.yaw = Math.atan2(s.at[0] - a.x, s.at[1] - a.z); a.p.task = this.mode === 'walk' ? 'Dropping tote at the pack drop' : 'Dropping tote on takeaway conveyor'
+      if (a.stepT > 0.5 && !a.scanned) { a.scanned = true; this.onEvent?.('RF', `Tote T${Math.floor(100000 + rng() * 899999)} ${this.mode === 'walk' ? 'dropped at pack drop' : 'inducted · takeaway'} · ${a.p.name}`); this.onDrop?.(a.p, s.at) }
       if (a.stepT > 1.4) finish()
     }
   }
