@@ -126,11 +126,19 @@ export interface Lane extends Base {
   kind: 'lane'; role: 'sort' | 'stage'; number: number; door: string; carrier: string
   units: number; gaylords: number; pallets: number; cutoff: string; fill: number; state: 'OPEN' | 'CLOSING' | 'CLOSED'
 }
+export type Role = 'picker' | 'packer' | 'receiver' | 'sorter' | 'qc' | 'grader' | 'driver' | 'lead'
+/** An associate on shift. Position and task are driven by the people scene each frame. */
+export interface Person extends Base {
+  kind: 'person'; name: string; badge: string; role: Role; task: string; zone: string; station: string | null
+  rate: number; unitsToday: number; shiftStart: string; onBreak: boolean; scanning: boolean
+}
+/** A forklift or reach truck, driven by one of the drivers. */
+export interface Truck extends Base { kind: 'truck'; type: 'reach' | 'counterbalance'; driver: string; task: string; carrying: boolean; hours: number; battery: number }
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane | Cage
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane | Cage | Person | Truck
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]; cages: Cage[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]; cages: Cage[]; people: Person[]; trucks: Truck[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -153,7 +161,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = [], cages: Cage[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = [], cages: Cage[] = [], people: Person[] = [], trucks: Truck[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -276,8 +284,31 @@ export function buildFacility(): Facility {
     center: [hold.x + hold.w / 2, 1.2, hold.z + hold.d / 2], size: [hold.w, 2.4, hold.d], face: [-1, 0, 0] }
   cages.push(cage); byId.set(cage.id, cage)
 
+  // The shift: 60 associates by role, and the six trucks their drivers run. Stations already staffed keep their names.
+  const roles: [Role, number][] = [['picker', 20], ['packer', 16], ['receiver', 8], ['sorter', 4], ['qc', 2], ['grader', 2], ['driver', 6], ['lead', 2]]
+  const shiftStarts = ['06:00', '06:00', '06:00', '14:00']
+  let badge = 4120
+  const staffedNames = { packer: stations.filter(s => (s.type === 'single' || s.type === 'multi') && s.associate), receiver: stations.filter(s => s.type === 'receive' && s.associate), qc: stations.filter(s => s.type === 'qc' && s.associate) }
+  for (const [role, count] of roles) for (let i = 0; i < count; i++) {
+    const st = role === 'packer' || role === 'receiver' || role === 'qc' ? staffedNames[role][i] ?? null : null
+    const p: Person = {
+      kind: 'person', id: `A-${badge++}`, name: st?.associate ?? pick(ASSOCIATES).replace(/^(\w)\./, (_, c) => String.fromCharCode(65 + (i * 7 + c.charCodeAt(0)) % 26) + '.'), badge: '', role, task: 'Starting shift', zone: '',
+      station: st?.id ?? null, rate: 0, unitsToday: randInt(200, 900), shiftStart: pick(shiftStarts), onBreak: false, scanning: false,
+      center: [0, 0.9, 0], size: [0.6, 1.8, 0.6], face: [0, 0, 1],
+    }
+    p.badge = p.id
+    people.push(p); byId.set(p.id, p)
+  }
+  const drivers = people.filter(p => p.role === 'driver')
+  for (let i = 0; i < 6; i++) {
+    const reach = i < 4
+    const t: Truck = { kind: 'truck', id: reach ? `RT-${pad(i + 1, 2)}` : `FL-${pad(i - 3, 2)}`, type: reach ? 'reach' : 'counterbalance', driver: drivers[i].id, task: '', carrying: false,
+      hours: randInt(1200, 6400), battery: randInt(35, 95), center: [0, 1.0, 0], size: [1.3, 2.3, 3.2], face: [0, 0, 1] }
+    trucks.push(t); byId.set(t.id, t)
+  }
+
   void rand
-  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, cages, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, cages, people, trucks, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.

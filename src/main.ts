@@ -12,6 +12,7 @@ import { SlamLine } from './scene/slam'
 import { Rebin } from './scene/rebin'
 import { Outbound } from './scene/outbound'
 import { Inbound } from './scene/inbound'
+import { People } from './scene/people'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
@@ -62,7 +63,8 @@ const slam = new SlamLine(facility.slams, M)
 const rebin = new Rebin(facility.walls, M)
 const outbound = new Outbound(facility.lanes, M)
 const inbound = new Inbound(facility, M)
-scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group, packing.group, slam.group, rebin.group, outbound.group, inbound.group)
+const people = new People(facility, M)
+scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group, packing.group, slam.group, rebin.group, outbound.group, inbound.group, people.group)
 const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders, ...packing.colliders, ...slam.colliders, ...rebin.colliders, ...outbound.colliders, ...inbound.colliders]
 
 // Daylight spilling in at the open doors, and a few pooled lights along the default views.
@@ -80,7 +82,30 @@ for (const [x, z] of [[-39, 22], [-33, -20], [-45, -20], [70, -48], [0, 30]]) {
 const rig = new CameraRig(canvas, colliders)
 const highlight = new Highlight(scene)
 const ui = new Console(facility)
-const picker = new Picker(canvas, [...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, packing.volumes, inbound.volumes, slam.volumes, rebin.volumes, outbound.volumes, building.zoneVolumes], () => rig.camera)
+const picker = new Picker(canvas, [people.volumes, people.truckVolumes, ...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, packing.volumes, inbound.volumes, slam.volumes, rebin.volumes, outbound.volumes, building.zoneVolumes], () => rig.camera)
+
+// Scans from the floor: the face loses a unit, the stream logs it, and a beep plays if the scan is near the camera.
+let audio: AudioContext | null = null
+canvas.addEventListener('pointerdown', () => { if (!audio) try { audio = new AudioContext() } catch { audio = null } }, { once: true })
+function beep(at: Vec3) {
+  if (!audio) return
+  const cam = rig.mode === 'walk' ? rig.walkPosition : rig.camera.position
+  const d = Math.hypot(cam.x - at[0], cam.z - at[2])
+  if (d > 25) return
+  const o = audio.createOscillator(), g = audio.createGain()
+  o.type = 'square'; o.frequency.value = 2600
+  g.gain.value = Math.min(0.08, 0.12 / (1 + d * 0.3))
+  o.connect(g).connect(audio.destination)
+  o.start(); o.stop(audio.currentTime + 0.08)
+}
+people.onScan = (p, face) => {
+  if (face.qty > 0) face.qty--
+  p.unitsToday++
+  ui.log('RF', `Pick confirmed · ${face.id} · 1 ea · ${p.name} · ${face.qty} left`)
+  if (ui.selected === face) ui.select(face)
+  beep(face.center)
+}
+people.onEvent = (src, msg) => ui.log(src, msg)
 
 picker.onHover = (e, x, y) => { Highlight.place(highlight.hover, e && e !== ui.selected ? e : null); ui.tooltip(e, x, y); canvas.style.cursor = e ? 'pointer' : '' }
 picker.onSelect = e => select(e)
@@ -93,7 +118,7 @@ function select(e: Entity | null) {
 }
 
 function walkTo(e: Entity) {
-  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : e.kind === 'station' ? 1.1 : e.kind === 'wall' ? 1.2 : e.kind === 'slam' ? 3 : e.kind === 'lane' ? (e.role === 'sort' ? 2 : 10) : e.kind === 'cage' ? 6 : 0
+  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : e.kind === 'station' ? 1.1 : e.kind === 'wall' ? 1.2 : e.kind === 'slam' ? 3 : e.kind === 'lane' ? (e.role === 'sort' ? 2 : 10) : e.kind === 'cage' ? 6 : e.kind === 'person' ? 1.6 : e.kind === 'truck' ? 3 : 0
   const pos: Vec3 = [e.center[0] + e.face[0] * off, 1.7, e.center[2] + e.face[2] * off]
   // Face the entity: yaw 0 looks toward -Z, so look back along the face vector.
   const yaw = Math.atan2(e.face[0], e.face[2])
@@ -101,7 +126,7 @@ function walkTo(e: Entity) {
 }
 /** Standoff by kind: bins sit on a 1.4 m cart aisle so the camera stays inside it; docks read best from a
  *  few metres back; zones from far enough to see the whole outline but never from above the roof. */
-const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'station' ? 4.5 : e.kind === 'wall' ? 5 : e.kind === 'slam' ? 10 : e.kind === 'lane' ? (e.role === 'sort' ? 5 : 16) : e.kind === 'cage' ? 14 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
+const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'station' ? 4.5 : e.kind === 'wall' ? 5 : e.kind === 'slam' ? 10 : e.kind === 'lane' ? (e.role === 'sort' ? 5 : 16) : e.kind === 'cage' ? 14 : e.kind === 'person' ? 3.2 : e.kind === 'truck' ? 6 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
 const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, standoff(e))
 const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.doorTarget ? 0 : 1; e.state = e.doorTarget ? (e.trailerId ? e.state : 'EMPTY') : 'CLOSED'; building.animateDoor(e); ui.select(e); syncDoorButton() } }
 
@@ -149,7 +174,7 @@ const focusGo = () => { const e = facility.byId.get(focusInput.value.trim().toUp
 document.getElementById('btn-focus')!.onclick = focusGo
 focusInput.addEventListener('change', focusGo)
 const busyDocks = facility.docks.filter(d => d.trailerId).length
-document.getElementById('btn-brief')!.onclick = () => alert(`FC-DFW7 · full hall · phase 1\n\n${HALL.w.toFixed(0)} × ${HALL.d.toFixed(0)} m · ${facility.docks.length} dock doors (${busyDocks} occupied) · ${facility.bays.length} rack bays · ${facility.bays.reduce((n, b) => n + b.slots.filter(s => s.lpn).length, 0)} reserve pallets · ${facility.faces.length} pick faces · ${facility.bins.length} barcoded bins · ${facility.zones.length} zones\n\nEvery object is at real dimensions (1 unit = 1 m).`)
+document.getElementById('btn-brief')!.onclick = () => alert(`FC-DFW7 · full hall · phase 1\n\n${HALL.w.toFixed(0)} × ${HALL.d.toFixed(0)} m · ${facility.docks.length} dock doors (${busyDocks} occupied) · ${facility.bays.length} rack bays · ${facility.bays.reduce((n, b) => n + b.slots.filter(s => s.lpn).length, 0)} reserve pallets · ${facility.faces.length} pick faces · ${facility.bins.length} barcoded bins · ${facility.zones.length} zones · ${facility.people.length} associates on shift · ${facility.trucks.length} trucks\n\nEvery object is at real dimensions (1 unit = 1 m).`)
 window.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).tagName === 'INPUT') return
   if (e.key === 'f' || e.key === 'F') { if (ui.selected) flyTo(ui.selected) }
@@ -191,6 +216,7 @@ function frame(now: number) {
   building.update(dt)
   for (const r of rackings) r.update(dt)
   conveyor.update(dt)
+  people.update(dt)
   picker.update()
   renderer.render(scene, rig.camera)
   ui.update(dt, { fps, calls: renderer.info.render.calls, tris: renderer.info.render.triangles })

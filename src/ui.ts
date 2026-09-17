@@ -1,4 +1,4 @@
-import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Lane, Cage, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Lane, Cage, Person, Truck, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
@@ -21,6 +21,10 @@ const STATION_SPEC: Record<string, string> = {
 }
 const STATION_UNIT: Record<string, [string, string, string, number]> = { single: ['UPH', 'totes', 'Packed today', 110], multi: ['UPH', 'totes', 'Packed today', 60], receive: ['units/h', 'pallets', 'Received today', 320], qc: ['samples/h', 'samples', 'Inspected today', 45] }
 
+const ROLE_NAME: Record<string, string> = { picker: 'Picker', packer: 'Packer', receiver: 'Receiver', sorter: 'Sorter', qc: 'QC inspector', grader: 'Returns grader', driver: 'Forklift operator', lead: 'Area lead' }
+const ROLE_UNIT: Record<string, string> = { picker: 'picks/h', packer: 'UPH', receiver: 'units/h', sorter: 'boxes/h', qc: 'samples/h', grader: 'items/h', driver: 'moves/h', lead: 'tasks/h' }
+const ROLE_TARGET: Record<string, number> = { picker: 120, packer: 110, receiver: 320, sorter: 240, qc: 45, grader: 40, driver: 28, lead: 10 }
+
 type Level = 'INFO' | 'WARN' | 'CRIT'
 interface Ev { t: string; level: Level; src: string; msg: string }
 
@@ -37,7 +41,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.lanes.map(x => x.id), ...f.cages.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.lanes.map(x => x.id), ...f.cages.map(x => x.id), ...f.people.map(x => x.id), ...f.trucks.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -47,6 +51,7 @@ export class Console {
     const busy = f.docks.filter(d => d.trailerId)
     this.kpi.dock = busy.length / f.docks.length
     $('k-dock-s').textContent = `${busy.length} of ${f.docks.length} doors occupied`
+    $('k-pick-s').textContent = `UPH · ${f.people.filter(p => p.role === 'picker' && !p.onBreak).length} pickers on floor · ${f.people.length} on shift`
     const worst = busy.reduce((a, b) => (b.minutesAtDoor > a.minutesAtDoor ? b : a), busy[0])
     $('alert-s').textContent = `worst: ${worst.id} · trailer detention ${worst.minutesAtDoor} min`
     for (let i = 0; i < 26; i++) this.pushEvent(true)
@@ -75,6 +80,13 @@ export class Console {
     $('k-pick').innerHTML = `${k.pick.toFixed(0)}<span>UPH</span>`
     $('k-dock').innerHTML = `${(k.dock * 100).toFixed(0)}<span>%</span>`
     $('k-acc').innerHTML = `${(k.acc * 100).toFixed(2)}<span>%</span>`
+  }
+
+  /** An event from the scene itself (a scan, a putaway, a drop), shown at the top of the stream. */
+  log(src: string, msg: string, level: Level = 'INFO') {
+    this.events.unshift({ t: new Date().toISOString().slice(11, 19), level, src, msg })
+    if (this.events.length > 120) this.events.pop()
+    this.renderEvents(true)
   }
 
   private pushEvent(silent = false) {
@@ -151,6 +163,10 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="${e.state === 'OPEN' ? 'ok' : e.state === 'CLOSING' ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>${e.role === 'sort' ? 'Sort position' : 'Staging lane'}</dt><dd>${e.carrier} · ${e.door}</dd><dt>Cut-off</dt><dd>${e.cutoff}</dd><dt>Boxes</dt><dd>${fmt(e.units)}</dd>${e.role === 'stage' ? `<dt>Staged</dt><dd>${e.gaylords} gaylords · ${e.pallets} pallets</dd>` : ''}</dl><div class="hint">CLICK · INSPECT LANE</div>`
     } else if (e.kind === 'cage') {
       tt.innerHTML = `<h4>${e.id} <span class="warn">● ${e.items} ON HOLD</span></h4><dl><dt>Cage</dt><dd>${e.name}</dd><dt>Oldest</dt><dd>${e.oldestDays} days</dd><dt>Top reason</dt><dd>${e.reasons[0][0]}</dd></dl><div class="hint">CLICK · INSPECT CAGE</div>`
+    } else if (e.kind === 'person') {
+      tt.innerHTML = `<h4>${e.name} <span class="${e.onBreak ? 'warn' : 'ok'}">● ${e.onBreak ? 'ON BREAK' : ROLE_NAME[e.role].toUpperCase()}</span></h4><dl><dt>Badge</dt><dd>${e.id}</dd><dt>Task</dt><dd>${e.task}</dd><dt>Zone</dt><dd>${e.zone}</dd><dt>Rate</dt><dd>${e.rate} ${ROLE_UNIT[e.role]}</dd></dl><div class="hint">CLICK · INSPECT ASSOCIATE</div>`
+    } else if (e.kind === 'truck') {
+      tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.carrying ? 'LOADED' : 'EMPTY'}</span></h4><dl><dt>Truck</dt><dd>${e.type === 'reach' ? 'Reach truck' : 'Counterbalance forklift'}</dd><dt>Driver</dt><dd>${(this.f.byId.get(e.driver) as Person).name}</dd><dt>Task</dt><dd>${e.task}</dd><dt>Battery</dt><dd>${e.battery}%</dd></dl><div class="hint">CLICK · INSPECT TRUCK</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
     } else {
@@ -173,6 +189,8 @@ export class Console {
     else if (e.kind === 'slam') this.renderSlam(e)
     else if (e.kind === 'lane') this.renderLane(e)
     else if (e.kind === 'cage') this.renderCage(e)
+    else if (e.kind === 'person') this.renderPerson(e)
+    else if (e.kind === 'truck') this.renderTruck(e)
     else if (e.kind === 'dock') this.renderDock(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
@@ -354,5 +372,35 @@ export class Console {
       <div class="sec"><label>Cage spec</label><div class="spec">8 ft chain-link cage with top rail and a sliding gate · hold shelving and vendor-return pallets · every item carries a red HOLD tag with reason code and date · dispositioned by QC: return to vendor, rework, restock or scrap</div></div>
       <div class="sec"><label>Holds by reason</label>${e.reasons.map(([r, n]) => `<div class="barrow"><span>${r}</span><b>${n}</b></div><div class="bar${r === 'Recall hold' && n > 0 ? ' warn' : ''}"><i style="width:${n / total * 100}%"></i></div>`).join('')}</div>
       <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+  }
+
+  private renderPerson(e: Person) {
+    const target = ROLE_TARGET[e.role], unit = ROLE_UNIT[e.role]
+    this.head(`ASSOCIATE · ${ROLE_NAME[e.role].toUpperCase()}`, e.name, e.onBreak ? 'ON BREAK' : e.scanning ? 'SCANNING' : 'ON TASK', e.onBreak ? 'warn' : 'ok')
+    const hist = this.history(e.id, e.rate || target / 2, target / 5)
+    const started = Number(e.shiftStart.slice(0, 2)) * 60 + Number(e.shiftStart.slice(3))
+    const onShift = Math.max(0, 15 * 60 - started)
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Badge</label><span>${e.id}</span></div><div><label>Zone</label><span>${e.zone || '—'}</span></div><div><label>Station</label><span>${e.station ?? '—'}</span></div></div>
+      <div class="sec"><label>Current task</label><div class="spec">${e.task}</div></div>
+      <div class="sec tiles"><div class="tile"><label>Rate</label><b>${e.rate}<span>${unit}</span></b></div><div class="tile"><label>Target</label><b>${target}<span>${unit}</span></b></div><div class="tile"><label>Units today</label><b>${fmt(e.unitsToday)}</b></div><div class="tile"><label>On shift</label><b>${Math.floor(onShift / 60)}<span>h ${onShift % 60} min · from ${e.shiftStart}</span></b></div></div>
+      <div class="sec"><label>${unit} · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="sec"><label>Rate vs target</label><div class="barrow"><span>${e.rate} of ${target} ${unit}</span><b>${Math.round(e.rate / target * 100)}%</b></div><div class="bar${e.rate < target * 0.8 ? ' warn' : ''}"><i style="width:${Math.min(100, e.rate / target * 100)}%"></i></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
+  }
+
+  private renderTruck(e: Truck) {
+    const driver = this.f.byId.get(e.driver) as Person
+    this.head(e.type === 'reach' ? 'REACH TRUCK' : 'COUNTERBALANCE FORKLIFT', e.id, e.carrying ? 'LOADED' : 'EMPTY', 'ok')
+    const hist = this.history(e.id, 24, 8)
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Driver</label><span>${driver.name}</span></div><div><label>Task</label><span>${e.task}</span></div><div><label>Hour meter</label><span>${fmt(e.hours)} h</span></div></div>
+      <div class="sec"><label>Truck spec</label><div class="spec">${e.type === 'reach' ? 'Electric reach truck · 1,600 kg at 600 mm load centre · 7.5 m lift · 2.4 m long, 1.15 m wide · 36 V · blue safety light, horn, seat belt' : 'Electric counterbalance forklift · 2,500 kg · 4.5 m mast · 1.2 m wide · cushion tyres · 48 V · blue safety light, horn, seat belt'}</div></div>
+      <div class="sec tiles"><div class="tile"><label>Battery</label><b>${e.battery}<span>%</span></b></div><div class="tile"><label>Moves today</label><b>${fmt(Math.round(e.hours % 97 + 40))}</b></div><div class="tile"><label>Load</label><b>${e.carrying ? '1' : '0'}<span>pallet</span></b></div><div class="tile"><label>Last inspection</label><b style="font-size:11px">06:12 today</b></div></div>
+      <div class="sec"><label>Moves per hour · shift</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="sec"><label>Battery</label><div class="barrow"><span>State of charge</span><b>${e.battery}%</b></div><div class="bar${e.battery < 30 ? ' warn' : ''}"><i style="width:${e.battery}%"></i></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#ffa62b')
   }
 }

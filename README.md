@@ -41,6 +41,10 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
   print-and-apply, reject lane) and on to 30 manual carrier sort positions with gaylords and scan desks.
   Eight put-to-light walls in rebin. 30 striped staging lanes behind the outbound doors with gaylords, wrapped
   pallets and a stretch wrapper.
+- **People and trucks.** 60 associates on shift in role-coloured vests: pickers with carts walking the aisles,
+  scanning faces with a red aim line and beep, picking and dropping totes on the takeaway belt; packers, receivers,
+  QC, sorters, graders and leads at work; four reach trucks doing putaway and two forklifts unloading. Every person
+  and truck is inspectable.
 - **Console.** KPI tiles, live event stream, inspector for bays, bins, docks and zones, focus search by
   location ID, fps / draw call / triangle stats.
 
