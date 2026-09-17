@@ -124,6 +124,8 @@ export class People {
   /** Called when a person completes a scan of a pick face. */
   onScan?: (p: Person, face: PickFace) => void
   onEvent?: (src: string, msg: string) => void
+  /** Called when a picker drops a tote on the takeaway belt, with the drop point. */
+  onDrop?: (p: Person, at: [number, number]) => void
   private sk = new Skeleton()
   private parts = new Map<string, THREE.InstancedMesh>()
   private actors: Actor[] = []
@@ -365,7 +367,7 @@ export class People {
       if (a.stepT > s.dur) finish()
     } else if (s.kind === 'drop') {
       a.pose = 'place'; a.yaw = Math.atan2(s.at[0] - a.x, s.at[1] - a.z); a.p.task = 'Dropping tote on takeaway conveyor'
-      if (a.stepT > 0.5 && !a.scanned) { a.scanned = true; this.onEvent?.('RF', `Tote T${Math.floor(100000 + rng() * 899999)} inducted · takeaway · ${a.p.name}`) }
+      if (a.stepT > 0.5 && !a.scanned) { a.scanned = true; this.onEvent?.('RF', `Tote T${Math.floor(100000 + rng() * 899999)} inducted · takeaway · ${a.p.name}`); this.onDrop?.(a.p, s.at) }
       if (a.stepT > 1.4) finish()
     }
   }

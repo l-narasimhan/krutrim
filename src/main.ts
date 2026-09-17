@@ -13,6 +13,7 @@ import { Rebin } from './scene/rebin'
 import { Outbound } from './scene/outbound'
 import { Inbound } from './scene/inbound'
 import { People } from './scene/people'
+import { OrderTrace } from './scene/trace'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
@@ -106,6 +107,19 @@ people.onScan = (p, face) => {
   beep(face.center)
 }
 people.onEvent = (src, msg) => ui.log(src, msg)
+// Follow one order: a highlighted tote from a picker's cart to a carrier gaylord, camera tracking it.
+const trace = new OrderTrace(facility)
+scene.add(trace.group)
+trace.onEvent = (src, msg) => ui.log(src, msg)
+people.onDrop = (p, at) => trace.dropped(p, at)
+trace.onDone = () => { rig.follow = null }
+function startOrder() {
+  tour.end(); select(null); trace.start(); trace.update(0)
+  rig.frame(trace.position, [1, 1, 1], [0, 0, 1], 4.5)
+  rig.follow = () => trace.position
+}
+document.getElementById('btn-order')!.onclick = () => (trace.active ? trace.end() : startOrder())
+document.querySelector<HTMLButtonElement>('#tour [data-tour="end"]')!.addEventListener('click', () => { if (trace.active) trace.end() })
 
 picker.onHover = (e, x, y) => { Highlight.place(highlight.hover, e && e !== ui.selected ? e : null); ui.tooltip(e, x, y); canvas.style.cursor = e ? 'pointer' : '' }
 picker.onSelect = e => select(e)
@@ -181,6 +195,7 @@ window.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).tagName === 'INPUT') return
   if (e.key === 'f' || e.key === 'F') { if (ui.selected) flyTo(ui.selected) }
   if (e.key === 'Escape' && tour.active) { tour.end(); return }
+  if (e.key === 'Escape' && trace.active) { trace.end(); return }
   if (e.key === 'Escape') { if (rig.mode === 'walk' && !document.pointerLockElement) presets.orbit(); else if (rig.mode !== 'walk') select(null) }
   if (e.key === 'p' || e.key === 'P') presets.plan()
   if (e.key === 'o' || e.key === 'O') presets.orbit()
@@ -192,6 +207,7 @@ function applyHash() {
   const h = new URLSearchParams(location.hash.slice(1))
   const v = h.get('view'); if (v && presets[v]) presets[v]()
   if (h.has('tour')) { tour.start(); tour.go(Number(h.get('tour')) || 0) }
+  if (h.has('order')) startOrder()
   const s = h.get('select'); const e = s ? facility.byId.get(s.toUpperCase()) : null
   if (e) select(e)
   if (h.has('fly') && e) flyTo(e)
@@ -219,6 +235,7 @@ function frame(now: number) {
   for (const r of rackings) r.update(dt)
   conveyor.update(dt)
   people.update(dt)
+  trace.update(dt)
   picker.update()
   renderer.render(scene, rig.camera)
   ui.update(dt, { fps, calls: renderer.info.render.calls, tris: renderer.info.render.triangles })

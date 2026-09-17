@@ -13,14 +13,14 @@ const CV = {
 /** 24 × 16 × 11 in attached-lid tote, the standard pick tote. */
 const TOTE = { L: 0.6, W: 0.4, H: 0.28 }
 
-interface Path { pts: THREE.Vector2[]; len: number; cum: number[] }
-function makePath(points: [number, number][]): Path {
+export interface Path { pts: THREE.Vector2[]; len: number; cum: number[] }
+export function makePath(points: [number, number][]): Path {
   const pts = points.map(p => new THREE.Vector2(p[0], p[1]))
   const cum = [0]
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]))
   return { pts, len: cum[cum.length - 1], cum }
 }
-function along(p: Path, s: number, out: THREE.Vector2): number {
+export function along(p: Path, s: number, out: THREE.Vector2): number {
   s = ((s % p.len) + p.len) % p.len
   let i = 1
   while (i < p.cum.length - 1 && p.cum[i] < s) i++
