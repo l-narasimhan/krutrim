@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (outbound band 5.1–5.5, 6.1, 6.3 and inbound band 2.3–2.7 built; 0.2, 3.7 and 10.4 DONE).
+Updated every time a task changes state. Last update: 2026-09-17 (outbound and inbound bands signed off; 15 DONE).
 
 **Status legend**
 
@@ -22,11 +22,11 @@ Updated every time a task changes state. Last update: 2026-09-17 (outbound band 
 |---|---|---|---|---|---|---|
 | 0 Foundations | 4 | 1 | 0 | 0 | 3 | 0 |
 | 1 Building shell and yard | 8 | 0 | 0 | 0 | 5 | 3 |
-| 2 Inbound | 9 | 0 | 5 | 0 | 2 | 2 |
+| 2 Inbound | 9 | 5 | 0 | 0 | 2 | 2 |
 | 3 Reserve storage and rack picking | 7 | 1 | 0 | 0 | 3 | 3 |
 | 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
-| 5 Pack, SLAM, manual sort | 6 | 0 | 5 | 0 | 0 | 1 |
-| 6 Outbound | 3 | 0 | 2 | 0 | 0 | 1 |
+| 5 Pack, SLAM, manual sort | 6 | 5 | 0 | 0 | 0 | 1 |
+| 6 Outbound | 3 | 2 | 0 | 0 | 0 | 1 |
 | 7 Returns | 4 | 0 | 0 | 0 | 0 | 4 |
 | 8 Supporting areas | 9 | 0 | 0 | 0 | 0 | 9 |
 | 9 People | 5 | 0 | 0 | 0 | 0 | 5 |
@@ -34,7 +34,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (outbound band 
 | 11 Console | 5 | 0 | 0 | 0 | 4 | 1 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **3** | **12** | **0** | **25** | **40** |
+| **Total** | **80** | **15** | **0** | **0** | **25** | **40** |
 
 ## Next up
 
@@ -73,11 +73,11 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 |---|---|---|---|---|---|
 | 2.1 | Dock doors: 62 doors, roll-up animation, leveler, bumpers, dock light, restraint, number | M | POC | Door opens on click; number readable | All 62 built with all parts, instanced panels, numbered plates inside and out; any door opens from the inspector |
 | 2.2 | Trailers and tractors: 53 ft dry vans, wheels, landing gear, livery, tractor cabs | M | POC | Trailers sit correctly against docks, doors open | 42 trailers at occupied doors on both walls, cargo tracks load/unload progress; no tractor, no livery |
-| 2.3 | Receive stations: desks, scanners, monitors, printers, tote stacks, bale area | M | REVIEW | Receive station inspectable | Built 2026-09-17 (`scene/inbound.ts`): RV-01…16, each a receive desk with monitor, scanner and LPN printer beside a decant table with cases, a tote stack and a queued pallet; two bale cages at the west end; inspector shows associate, units/h vs target, pallets queued, received today |
-| 2.4 | Inbound staging: floor lanes, pallets, pallet jacks, stretch wrap, receive conveyor | S | REVIEW | Staging populated and labelled | Built 2026-09-17: a striped, numbered lane behind every inbound door with unloaded pallets (more at occupied doors), manual pallet jacks in some lanes, two extendable conveyors parked at floor-load doors |
-| 2.5 | QA/QC inspection at receive: inspection benches, sample carts, scales, monitors, pass/fail lanes | M | REVIEW | An inspection bench is inspectable with pass/fail counts | Built 2026-09-17: QC-01…06 benches with scale, monitor and sample cart; green PASS lane south to putaway staging, red FAIL lane east to the hold cage; inspector shows samples/h, queue, inspected today. Pass/fail split is phase 2 data |
-| 2.6 | QC reject / damage / hold cage: fenced quarantine cage with gate, hold shelving, vendor-return pallets, red hold tags | M | REVIEW | Cage inspectable: items on hold, reason codes, age | Built 2026-09-17: CAGE-QC, 8 ft chain-link on posts with top rail, sliding gate and QC HOLD sign on the west face, hold shelving and red-tagged pallets inside; inspector shows items, oldest hold and holds by reason |
-| 2.7 | Putaway staging: floor positions by destination module, staged pallets and tote stacks, putaway buffer conveyor to the pick module | M | REVIEW | Staged pallets carry destination labels; buffer conveyor feeds the mezzanine | Built 2026-09-17: 30 painted positions in RES-A, RES-B and FM-1 groups with painted and posted destination signs, staged pallets and tote stacks; buffer belt conveyor from staging east to FM-1 with totes riding it. Per-pallet destination labels still to do |
+| 2.3 | Receive stations: desks, scanners, monitors, printers, tote stacks, bale area | M | DONE | Receive station inspectable | Built 2026-09-17 (`scene/inbound.ts`): RV-01…16, each a receive desk with monitor, scanner and LPN printer beside a decant table with cases, a tote stack and a queued pallet; two bale cages at the west end; inspector shows associate, units/h vs target, pallets queued, received today. Signed off by Lan 2026-09-17 |
+| 2.4 | Inbound staging: floor lanes, pallets, pallet jacks, stretch wrap, receive conveyor | S | DONE | Staging populated and labelled | Built 2026-09-17: a striped, numbered lane behind every inbound door with unloaded pallets (more at occupied doors), manual pallet jacks in some lanes, two extendable conveyors parked at floor-load doors. Signed off by Lan 2026-09-17 |
+| 2.5 | QA/QC inspection at receive: inspection benches, sample carts, scales, monitors, pass/fail lanes | M | DONE | An inspection bench is inspectable with pass/fail counts | Built 2026-09-17: QC-01…06 benches with scale, monitor and sample cart; green PASS lane south to putaway staging, red FAIL lane east to the hold cage; inspector shows samples/h, queue, inspected today. Pass/fail split is phase 2 data. Signed off by Lan 2026-09-17 |
+| 2.6 | QC reject / damage / hold cage: fenced quarantine cage with gate, hold shelving, vendor-return pallets, red hold tags | M | DONE | Cage inspectable: items on hold, reason codes, age | Built 2026-09-17: CAGE-QC, 8 ft chain-link on posts with top rail, sliding gate and QC HOLD sign on the west face, hold shelving and red-tagged pallets inside; inspector shows items, oldest hold and holds by reason. Signed off by Lan 2026-09-17 |
+| 2.7 | Putaway staging: floor positions by destination module, staged pallets and tote stacks, putaway buffer conveyor to the pick module | M | DONE | Staged pallets carry destination labels; buffer conveyor feeds the mezzanine | Built 2026-09-17: 30 painted positions in RES-A, RES-B and FM-1 groups with painted and posted destination signs, staged pallets and tote stacks; buffer belt conveyor from staging east to FM-1 with totes riding it. Per-pallet destination labels still to do. Signed off by Lan 2026-09-17 |
 | 2.8 | Non-conveyable (NC) receive and storage: oversize floor positions, NC pallet racking | S | TODO | NC zone labelled and stocked | New 2026-09-17 |
 | 2.9 | Dock unloading in motion: forklift / pallet jack cycling pallets from trailer to staging; extendable conveyor into floor-loaded trailers with unloaders handing cartons; cargo in the trailer shrinks; dock inspector progress tracks it | M | TODO | A trailer visibly empties over time by both methods | New 2026-09-17 |
 
@@ -109,20 +109,20 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
-| 5.1 | Takeaway conveyor: belt and roller sections, rails, legs, photo eyes, motors with conduit | M | REVIEW | Totes ride it end to end | Built 2026-09-17 (`scene/conveyor.ts`, line data in `layout.ts` CONVEYORS): 168 m 24 in belt at 0.85 m along z 18 in 10 ft sections on H-stands, guard rails, gearmotor drives every 30 m with conduit to a control station, photo eyes every 20 ft, spurs into gift, pack multis, rebin and pack singles; 70 attached-lid totes ride west at 0.6 m/s |
-| 5.2 | Pack stations: 48 stations with bench, box shelf, tape, dunnage, scale, printer, monitor | M | REVIEW | Stations inspectable with associate, rate, queue | Built 2026-09-17 (`scene/packing.ts`): PK-01…24 singles, PK-25…48 multis, two rows per zone facing a roller box line that runs to the SLAM zone with packed boxes riding it; each station has bench, carton riser with flats, monitor, keyboard, scale, printer, tape gun, dunnage roll, tote stand, WIP boxes and its number; inspector shows associate, rate vs target, queue, packed today. No people yet (milestone 9) |
-| 5.3 | SLAM line: scanner tunnel, print-and-apply, in-line scale, reject lane | M | REVIEW | Boxes ride through and get a label | Built 2026-09-17 (`scene/slam.ts`): SLAM line along z 41 then into the sort zone, stations SLAM-1 and SLAM-2 downstream of each pack merge with checkweigh scale, 5-sided scan tunnel, print-and-apply with tamp arm and label roll, verify scanner and beacon, divert to a gravity reject lane; boxes carry a 4 × 6 label after the first labeler; inspector shows rate, labelled, rejects |
-| 5.4 | Manual carrier sort: sort desks, gaylords and pallets per lane, scan-to-sort screens | M | REVIEW | Lanes labelled by carrier and inspectable | Built 2026-09-17 (`scene/outbound.ts`): 30 sort positions SORT-01…30 under the SLAM outfeed, one per shipping door, each a gaylord on a pallet with a carrier-coloured lane sign; scan-to-sort desks with screens every five positions; inspector shows boxes sorted, gaylord fill, trailer fill, cut-off |
-| 5.5 | Rebin / sort walls for multi-item orders: put walls with lit slots, tote induct, order-complete lights | M | REVIEW | A multi-item order fills a wall slot | Built 2026-09-17 (`scene/rebin.ts`): 8 put walls RB-01…08, 8 × 6 cubbies each with a put-to-light LED, lit cubbies hold units; the takeaway spur inducts at RB-02; inspector shows the cubby grid, orders open and completed. Order flow itself is phase 2 |
+| 5.1 | Takeaway conveyor: belt and roller sections, rails, legs, photo eyes, motors with conduit | M | DONE | Totes ride it end to end | Built 2026-09-17 (`scene/conveyor.ts`, line data in `layout.ts` CONVEYORS): 168 m 24 in belt at 0.85 m along z 18 in 10 ft sections on H-stands, guard rails, gearmotor drives every 30 m with conduit to a control station, photo eyes every 20 ft, spurs into gift, pack multis, rebin and pack singles; 70 attached-lid totes ride west at 0.6 m/s. Signed off by Lan 2026-09-17 |
+| 5.2 | Pack stations: 48 stations with bench, box shelf, tape, dunnage, scale, printer, monitor | M | DONE | Stations inspectable with associate, rate, queue | Built 2026-09-17 (`scene/packing.ts`): PK-01…24 singles, PK-25…48 multis, two rows per zone facing a roller box line that runs to the SLAM zone with packed boxes riding it; each station has bench, carton riser with flats, monitor, keyboard, scale, printer, tape gun, dunnage roll, tote stand, WIP boxes and its number; inspector shows associate, rate vs target, queue, packed today. No people yet (milestone 9). Signed off by Lan 2026-09-17 |
+| 5.3 | SLAM line: scanner tunnel, print-and-apply, in-line scale, reject lane | M | DONE | Boxes ride through and get a label | Built 2026-09-17 (`scene/slam.ts`): SLAM line along z 41 then into the sort zone, stations SLAM-1 and SLAM-2 downstream of each pack merge with checkweigh scale, 5-sided scan tunnel, print-and-apply with tamp arm and label roll, verify scanner and beacon, divert to a gravity reject lane; boxes carry a 4 × 6 label after the first labeler; inspector shows rate, labelled, rejects. Signed off by Lan 2026-09-17 |
+| 5.4 | Manual carrier sort: sort desks, gaylords and pallets per lane, scan-to-sort screens | M | DONE | Lanes labelled by carrier and inspectable | Built 2026-09-17 (`scene/outbound.ts`): 30 sort positions SORT-01…30 under the SLAM outfeed, one per shipping door, each a gaylord on a pallet with a carrier-coloured lane sign; scan-to-sort desks with screens every five positions; inspector shows boxes sorted, gaylord fill, trailer fill, cut-off. Signed off by Lan 2026-09-17 |
+| 5.5 | Rebin / sort walls for multi-item orders: put walls with lit slots, tote induct, order-complete lights | M | DONE | A multi-item order fills a wall slot | Built 2026-09-17 (`scene/rebin.ts`): 8 put walls RB-01…08, 8 × 6 cubbies each with a put-to-light LED, lit cubbies hold units; the takeaway spur inducts at RB-02; inspector shows the cubby grid, orders open and completed. Order flow itself is phase 2. Signed off by Lan 2026-09-17 |
 | 5.6 | Gift wrap and special handling stations | S | TODO | Stations inspectable | New 2026-09-17 |
 
 ## 6 Outbound transport zone
 
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
-| 6.1 | Outbound staging lanes per carrier, gaylords, wrapped pallets, stretch wrapper | M | REVIEW | 30 outbound docks each have a labelled lane | Built 2026-09-17 (`scene/outbound.ts`): STG-01…30 striped 12 ft lanes from sort to the dock floor with painted numbers, carrier signs at the lane head, gaylords and stretch-wrapped pallets staged, turntable stretch wrapper at the west end |
+| 6.1 | Outbound staging lanes per carrier, gaylords, wrapped pallets, stretch wrapper | M | DONE | 30 outbound docks each have a labelled lane | Built 2026-09-17 (`scene/outbound.ts`): STG-01…30 striped 12 ft lanes from sort to the dock floor with painted numbers, carrier signs at the lane head, gaylords and stretch-wrapped pallets staged, turntable stretch wrapper at the west end. Signed off by Lan 2026-09-17 |
 | 6.2 | Fluid load: extendable conveyors into open trailers, boxes being loaded | S | TODO | An outbound trailer shows a load in progress | |
-| 6.3 | Lane inspection: carrier, cut-off, box count, trailer fill | S | REVIEW | Any lane clickable | Built with 6.1: sort positions and staging lanes are entities with carrier, door, cut-off, units, fill and state; tooltip and inspector |
+| 6.3 | Lane inspection: carrier, cut-off, box count, trailer fill | S | DONE | Any lane clickable | Built with 6.1: sort positions and staging lanes are entities with carrier, door, cut-off, units, fill and state; tooltip and inspector. Signed off by Lan 2026-09-17 |
 
 ## 7 Returns processing
 
