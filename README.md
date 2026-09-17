@@ -32,6 +32,8 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
 - **Docks.** 62 doors (26 inbound, 4 returns, 2 waste, 30 outbound with carrier lanes), each with sectional
   door, leveler, bumpers, seal, dock light, restraint and number plate; 42 doors have a 53 ft dry van whose
   cargo tracks its load or unload progress.
+- **Takeaway conveyor.** 168 m of 24 in belt conveyor along the south edge of storage with spurs into each pack
+  zone; totes ride it continuously.
 - **Console.** KPI tiles, live event stream, inspector for bays, bins, docks and zones, focus search by
   location ID, fps / draw call / triangle stats.
 

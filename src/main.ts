@@ -6,6 +6,7 @@ import { makeMaterials } from './scene/mats'
 import { Building } from './scene/building'
 import { Racking } from './scene/racking'
 import { Shelving } from './scene/shelving'
+import { Conveyor } from './scene/conveyor'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
@@ -50,8 +51,9 @@ const building = new Building(facility, M)
 const rackings = MODULES.filter(m => m.kind === 'rack').map(m => new Racking(m, facility.baysOf.get(m.id)!, M))
 const shelvings = MODULES.filter(m => m.kind === 'shelf').map(m => new Shelving(m, facility.binsOf.get(m.id)!, M))
 const rackingOf = new Map(rackings.map(r => [r.module.id, r]))
-scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group))
-const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders)]
+const conveyor = new Conveyor(M)
+scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group)
+const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders]
 
 // Daylight spilling in at the open doors, and a few pooled lights along the default views.
 for (const d of facility.docks) if (d.doorTarget && Math.abs(d.number % 6) === 3) {
@@ -178,6 +180,7 @@ function frame(now: number) {
   followKey(rig.mode === 'walk' ? rig.walkPosition : rig.controls.target)
   building.update(dt)
   for (const r of rackings) r.update(dt)
+  conveyor.update(dt)
   picker.update()
   renderer.render(scene, rig.camera)
   ui.update(dt, { fps, calls: renderer.info.render.calls, tris: renderer.info.render.triangles })

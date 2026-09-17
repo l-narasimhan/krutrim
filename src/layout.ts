@@ -189,6 +189,24 @@ export const AREAS: Area[] = [
   A('XA-3', 'Cross aisle, FM-1 south entry', 'circulation', 44, -38, 60, 4),
 ]
 
+// ---- Conveyors -----------------------------------------------------------------------------------------------
+
+/** A powered tote conveyor line: a polyline of world (x, z) points, belt top at `h`, and spurs that branch off it. */
+export interface ConveyorLine { id: string; name: string; points: [number, number][]; h: number; spurs: { at: number; to: [number, number] }[] }
+
+/** The takeaway belt runs west along the south edge of storage at z 18 and diverts into each pack zone. */
+export const CONVEYORS: ConveyorLine[] = [
+  {
+    id: 'CV-TAKE', name: 'Takeaway conveyor', points: [[50, 18], [-118, 18]], h: 0.85,
+    spurs: [
+      { at: 40, to: [40, 25] },   // gift wrap
+      { at: 5, to: [5, 25] },     // pack multis
+      { at: -40, to: [-40, 25] }, // rebin
+      { at: -85, to: [-85, 25] }, // pack singles
+    ],
+  },
+]
+
 // ---- Yard ----------------------------------------------------------------------------------------------------
 
 export const TRAILER = { L: 16.15, W: 2.6 }
