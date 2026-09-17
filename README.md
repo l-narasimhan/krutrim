@@ -8,7 +8,7 @@ spatial-ops console. 1 unit = 1 metre; every object is a real product at its rea
 
 ## Status
 
-As of 2026-09-17: 15 done, 6 built and in review, 25 first-pass (not yet held to the realism bar), 34 not started, out of 80 tasks. Full detail per task in [TASKS.md](TASKS.md).
+As of 2026-09-17: 15 done, 7 built and in review, 25 first-pass (not yet held to the realism bar), 33 not started, out of 80 tasks. Full detail per task in [TASKS.md](TASKS.md).
 
 ✅ done · 🟡 built, in review · 🔵 first pass exists · ⬜ not started
 
@@ -46,7 +46,7 @@ As of 2026-09-17: 15 done, 6 built and in review, 25 first-pass (not yet held to
 🔵 10.1 Bird's-eye<br>🔵 10.2 First person<br>⬜ 10.3 Mini-map in first person with position and heading<br>✅ 10.4 Presets and guided tour of the inbound-to-outbound route<br>🔵 10.5 Arrow traversal in every mode
 
 **11 Console**  
-🔵 11.1 Console shell<br>⬜ 11.2 Layers<br>🔵 11.3 Event stream<br>🔵 11.4 Inspector<br>🔵 11.5 Focus and search by location ID or name
+🔵 11.1 Console shell<br>🟡 11.2 Layers<br>🔵 11.3 Event stream<br>🔵 11.4 Inspector<br>🔵 11.5 Focus and search by location ID or name
 
 **12 Polish, performance, delivery**  
 ⬜ 12.1 Baked ambient occlusion and contact shadows<br>⬜ 12.2 Post-processing<br>⬜ 12.3 Performance budget<br>⬜ 12.4 Deploy to Vercel, README with screenshots and a recorded walkthrough
@@ -95,6 +95,8 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
   scanning faces with a red aim line and beep, picking and dropping totes on the takeaway belt; packers, receivers,
   QC, sorters, graders and leads at work; four reach trucks doing putaway and two forklifts unloading. Every person
   and truck is inspectable.
+- **Layers.** Inventory (cases by fill, bins by velocity), Flow (zones by stage, conveyors lit), Labor (zones by
+  headcount, every associate marked against target) and Safety (forklift areas, walkways, clearance rings). Keys 1 to 5.
 - **Console.** KPI tiles, live event stream, inspector for bays, bins, docks and zones, focus search by
   location ID, fps / draw call / triangle stats.
 

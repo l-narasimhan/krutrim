@@ -33,6 +33,7 @@ export class Racking {
   private filmSize: Float32Array
   private firstPallet = new Map<Bay, number>()
   private animating = new Set<Bay>()
+  private caseColors: Float32Array | null = null
 
   constructor(readonly module: StorageModule, private bays: Bay[], M: Mats) {
     const { bayPitch, levels, levelPitch, frameDepth, column, uprightH, beamLen, beamH, beamD, flue } = RACK
@@ -212,6 +213,25 @@ export class Racking {
         this.colliders.push(new THREE.Box3(new THREE.Vector3(Math.min(a[0], b[0]), 0, Math.min(a[2], b[2])), new THREE.Vector3(Math.max(a[0], b[0]), 9, Math.max(a[2], b[2]))))
       }
     }
+  }
+
+  /** Inventory layer: tint every case by its bay's fill, green full through amber to red near empty; otherwise restore. */
+  setLayer(layer: string) {
+    const ic = this.cases.instanceColor!
+    if (!this.caseColors) this.caseColors = new Float32Array(ic.array)
+    if (layer !== 'inventory') { (ic.array as Float32Array).set(this.caseColors); ic.needsUpdate = true; return }
+    const c = new THREE.Color()
+    for (const bay of this.bays) {
+      c.setHSL(bay.fill * 0.33, 0.85, 0.45)
+      let pi = this.firstPallet.get(bay)!
+      for (const s of bay.slots) {
+        if (!s.lpn) continue
+        const cs = this.caseRange[pi * 2], cn = this.caseRange[pi * 2 + 1]
+        for (let k = cs; k < cs + cn; k++) this.cases.setColorAt(k, c)
+        pi++
+      }
+    }
+    ic.needsUpdate = true
   }
 
   /** Slide a bay's pallets out toward the aisle (or back). */

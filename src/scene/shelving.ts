@@ -12,8 +12,21 @@ export class Shelving {
   bins: THREE.InstancedMesh
   labels: LabelField
   colliders: THREE.Box3[] = []
+  private binList: Bin[]
+  private binColors: Float32Array | null = null
+
+  /** Inventory layer: bins by velocity, red A movers, amber B, blue C, dark when empty; otherwise the shelf-bin blue. */
+  setLayer(layer: string) {
+    const ic = this.bins.instanceColor!
+    if (!this.binColors) this.binColors = new Float32Array(ic.array)
+    if (layer !== 'inventory') { (ic.array as Float32Array).set(this.binColors); ic.needsUpdate = true; return }
+    const c = new THREE.Color()
+    this.binList.forEach((b, i) => this.bins.setColorAt(i, c.setHex(!b.sku ? 0x2a2e33 : b.velocity === 'A' ? 0xff3b3b : b.velocity === 'B' ? 0xffb020 : 0x2f7fd6)))
+    ic.needsUpdate = true
+  }
 
   constructor(readonly module: StorageModule, bins: Bin[], M: Mats) {
+    this.binList = bins
     const { unitW, unitD, unitH, post, shelfT, levels, levelPitch, firstShelfY } = SHELF
     const { rows, baysPerRow: units } = module
     const g = this.group

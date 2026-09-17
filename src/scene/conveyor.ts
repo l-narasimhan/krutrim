@@ -39,6 +39,16 @@ export class Conveyor {
   private boxSize: Float32Array
   private lines: { path: Path; h: number; s: Float32Array; first: number; count: number; carries: 'tote' | 'box'; labelAfter: number }[] = []
   private tmp = new THREE.Vector2()
+  private beltMesh!: THREE.Mesh
+  private rollerMesh!: THREE.Mesh
+  private baseMats: THREE.Material[] = []
+  private flowMat = new THREE.MeshStandardMaterial({ color: 0x38d6ff, emissive: 0x38d6ff, emissiveIntensity: 0.8, roughness: 0.5 })
+
+  /** Flow layer: every conveyor surface lights up cyan; otherwise its real material. */
+  setLayer(layer: string) {
+    this.beltMesh.material = layer === 'flow' ? this.flowMat : this.baseMats[0]
+    this.rollerMesh.material = layer === 'flow' ? this.flowMat : this.baseMats[1]
+  }
 
   constructor(M: Mats) {
     const frame: THREE.BufferGeometry[] = [], belt: THREE.BufferGeometry[] = [], rollers: THREE.BufferGeometry[] = [], dark: THREE.BufferGeometry[] = [], drives: THREE.BufferGeometry[] = []
@@ -68,7 +78,9 @@ export class Conveyor {
       ctx.fillStyle = '#c9cdd0'; ctx.fillRect(0, 14, 32, 4); ctx.fillRect(0, 46, 32, 4)
     }, { repeat: [1, 1] })
     const rollerMat = new THREE.MeshStandardMaterial({ map: rollerTex, roughness: 0.4, metalness: 0.8 })
-    this.group.add(merged(frame, M.galvanised), merged(belt, M.rubber, false), merged(rollers, rollerMat, false), merged(dark, M.steelDark), merged(drives, M.upright))
+    this.beltMesh = merged(belt, M.rubber, false); this.rollerMesh = merged(rollers, rollerMat, false)
+    this.baseMats = [this.beltMesh.material as THREE.Material, this.rollerMesh.material as THREE.Material]
+    this.group.add(merged(frame, M.galvanised), this.beltMesh, this.rollerMesh, merged(dark, M.steelDark), merged(drives, M.upright))
     // Photo eyes: a small sensor body on the rail post with a red LED, one instanced mesh each.
     const eyeBody = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, 0.05, 0.02), M.steelDark, eyes.length)
     const eyeLed = new THREE.InstancedMesh(new THREE.BoxGeometry(0.008, 0.008, 0.004), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff2020, emissiveIntensity: 3 }), eyes.length)

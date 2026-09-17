@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (milestone 9 people and 3.4 trucks built; 15 DONE).
+Updated every time a task changes state. Last update: 2026-09-17 (console layers built; 15 DONE, 7 in review).
 
 **Status legend**
 
@@ -31,10 +31,10 @@ Updated every time a task changes state. Last update: 2026-09-17 (milestone 9 pe
 | 8 Supporting areas | 9 | 0 | 0 | 0 | 0 | 9 |
 | 9 People | 5 | 0 | 5 | 0 | 0 | 0 |
 | 10 Navigation | 5 | 1 | 0 | 0 | 3 | 1 |
-| 11 Console | 5 | 0 | 0 | 0 | 4 | 1 |
+| 11 Console | 5 | 0 | 1 | 0 | 4 | 0 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **15** | **6** | **0** | **25** | **34** |
+| **Total** | **80** | **15** | **7** | **0** | **25** | **33** |
 
 ## Next up
 
@@ -172,7 +172,7 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 11.1 | Console shell: top bar, layer nav, KPI tiles, inspector, event stream, camera bar, stats | M | POC | Layout matches the reference structure | Working |
-| 11.2 | Layers: Overview, Inventory, Flow, Labor, Safety recolouring | M | TODO | Switching layers recolours the scene | Nav buttons present, disabled |
+| 11.2 | Layers: Overview, Inventory, Flow, Labor, Safety recolouring | M | REVIEW | Switching layers recolours the scene | Built 2026-09-17 (`scene/layers.ts` plus `setLayer` on racking, shelving and conveyors): Inventory tints reserve cases by bay fill and bins by velocity; Flow colours zone slabs by process stage and lights every conveyor; Labor colours zones by live headcount and marks each associate green, amber or red against their rate target; Safety marks forklift areas red, walkways green, 3 m clearance rings on trucks, pickers in truck aisles amber. Keys 1–5, `#layer=` deep link |
 | 11.3 | Event stream: simulated WMS, dock, pack, returns, safety events, filters | S | POC | Events scroll at a realistic rate | Working |
 | 11.4 | Inspector: header, status, meta, metric tiles, sparkline, capacity bars, detail grid, actions | M | POC | Every inspectable type renders correctly | Bay, bin, dock done |
 | 11.5 | Focus and search by location ID or name | S | POC | `1A-02-014-C05` flies to that bin | Working |

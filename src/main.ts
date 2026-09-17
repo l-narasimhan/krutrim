@@ -14,6 +14,7 @@ import { Outbound } from './scene/outbound'
 import { Inbound } from './scene/inbound'
 import { People } from './scene/people'
 import { OrderTrace } from './scene/trace'
+import { Layers, LAYER_TITLE, type Layer } from './scene/layers'
 import { CameraRig, type Mode } from './camera'
 import { Picker, Highlight } from './picking'
 import { Console } from './ui'
@@ -160,6 +161,19 @@ ui.onAction = (a, e) => {
   if (a === 'follow') { select(e); flyTo(e); rig.follow = () => e.center }
 }
 
+// ---- Layers: recolour the scene by what you want to see ----------------------------------------
+const layers = new Layers(facility)
+scene.add(layers.group)
+function setLayer(l: Layer) {
+  layers.set(l)
+  for (const r of rackings) r.setLayer(l)
+  for (const sh of shelvings) sh.setLayer(l)
+  conveyor.setLayer(l)
+  document.querySelectorAll<HTMLButtonElement>('.nav[data-layer]').forEach(b => b.classList.toggle('on', b.dataset.layer === l))
+  document.getElementById('layer-title')!.innerHTML = `<b>${l.toUpperCase()}</b> ${LAYER_TITLE[l]}`
+}
+document.querySelectorAll<HTMLButtonElement>('.nav[data-layer]').forEach(b => { b.disabled = false; b.onclick = () => setLayer(b.dataset.layer as Layer) })
+
 // ---- Camera bar, layers, focus, keys ----------------------------------------------------------
 const resA = MODULES.find(m => m.id === 'RES-A')!, fm1 = MODULES.find(m => m.id === 'FM-1')!
 const aisleX = (m: typeof resA, a: number) => m.x + aisleV(m, a)
@@ -205,6 +219,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Escape' && trace.active) { trace.end(); return }
   if (e.key === 'Escape') { if (rig.mode === 'walk' && !document.pointerLockElement) presets.orbit(); else if (rig.mode !== 'walk') select(null) }
   if (e.key === 'p' || e.key === 'P') presets.plan()
+  if (e.key >= '1' && e.key <= '5') setLayer((['overview', 'inventory', 'flow', 'labor', 'safety'] as Layer[])[Number(e.key) - 1])
   if (e.key === 'o' || e.key === 'O') presets.orbit()
 })
 syncDoorButton()
@@ -213,6 +228,7 @@ syncDoorButton()
 function applyHash() {
   const h = new URLSearchParams(location.hash.slice(1))
   const v = h.get('view'); if (v && presets[v]) presets[v]()
+  const ly = h.get('layer'); if (ly && ly in LAYER_TITLE) setLayer(ly as Layer)
   if (h.has('tour')) { tour.start(); tour.go(Number(h.get('tour')) || 0) }
   if (h.get('flow') === 'walk') { flowSel.value = 'walk'; people.setFlowMode('walk'); trace.mode = 'walk' }
   if (h.has('order')) startOrder()
@@ -244,6 +260,7 @@ function frame(now: number) {
   conveyor.update(dt)
   people.update(dt)
   trace.update(dt)
+  layers.update()
   picker.update()
   renderer.render(scene, rig.camera)
   ui.update(dt, { fps, calls: renderer.info.render.calls, tris: renderer.info.render.triangles })
