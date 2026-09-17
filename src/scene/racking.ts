@@ -5,6 +5,7 @@ import type { StorageModule } from '../layout'
 import { Tex } from '../assets'
 import { setInstance, boxAt, canvasTexture } from './util'
 import { LabelField } from './labels'
+import { buildPickFaces } from './pickfaces'
 import type { Mats } from './mats'
 import { rng, pick, randInt } from '../rng'
 
@@ -18,6 +19,7 @@ const CASES: [number, number, number][] = [[0.4, 0.3, 0.3], [0.6, 0.4, 0.4], [0.
 export class Racking {
   group = new THREE.Group()
   volumes: THREE.InstancedMesh
+  faceVolumes: THREE.InstancedMesh
   labels: LabelField
   colliders: THREE.Box3[] = []
   private pallets: THREE.InstancedMesh
@@ -167,8 +169,10 @@ export class Racking {
     this.film.renderOrder = 2
     g.add(this.pallets, this.cases, this.film)
 
-    // --- Labels: 4x6" LPN license plates on each load face, and barcoded bay placards on the first beam.
-    this.labels = new LabelField(nPallets + bays.length, 0.1, 0.031)
+    // --- Labels: 4x6" LPN license plates on each load face, barcoded bay placards on the level-C beam,
+    // and one label per pick face on the level-B beam.
+    const faces = bays.flatMap(b => b.faces)
+    this.labels = new LabelField(nPallets + bays.length + faces.length, 0.1, 0.031)
     pi = 0
     for (const bay of bays) {
       const ry = bay.faceDir === 1 ? 0 : Math.PI
@@ -180,14 +184,16 @@ export class Racking {
         pi++
       }
     }
-    // Placards sit centred on the level-1 front beam of every bay.
+    // Placards sit centred on the front face of the first reserve beam (level C) of every bay.
     const placards = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.12, 0.04), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }), bays.length)
     bays.forEach((bay, i) => {
       const ry = bay.faceDir === 1 ? 0 : Math.PI
-      const zFace = bay.local[2] + bay.faceDir * (frameDepth / 2 + 0.03)
-      this.labels.set(nPallets + i, bay.id, bay.local[0], levelPitch - 0.001, zFace, ry, bay.aisle)
-      setInstance(placards, i, bay.local[0], levelPitch - 0.001, zFace - bay.faceDir * 0.002, 1, 1, 1, 0, ry, 0)
+      const zFace = bay.local[2] + bay.faceDir * (frameDepth / 2 - column + 0.004)
+      this.labels.set(nPallets + i, bay.id, bay.local[0], RACK.pickLevels * levelPitch, zFace, ry, bay.aisle)
+      setInstance(placards, i, bay.local[0], RACK.pickLevels * levelPitch, zFace - bay.faceDir * 0.002, 1, 1, 1, 0, ry, 0)
     })
+    // Pick-level fit-out and face labels.
+    this.faceVolumes = buildPickFaces(faces, M, this.labels, nPallets + bays.length, g)
     this.labels.commit()
     g.add(this.labels.mesh, placards)
 

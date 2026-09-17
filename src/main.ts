@@ -67,7 +67,7 @@ for (const [x, z] of [[-39, 22], [-33, -20], [-45, -20], [70, -48], [0, 30]]) {
 const rig = new CameraRig(canvas, colliders)
 const highlight = new Highlight(scene)
 const ui = new Console(facility)
-const picker = new Picker(canvas, [...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, building.zoneVolumes], () => rig.camera)
+const picker = new Picker(canvas, [...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, building.zoneVolumes], () => rig.camera)
 
 picker.onHover = (e, x, y) => { Highlight.place(highlight.hover, e && e !== ui.selected ? e : null); ui.tooltip(e, x, y); canvas.style.cursor = e ? 'pointer' : '' }
 picker.onSelect = e => select(e)
@@ -80,14 +80,14 @@ function select(e: Entity | null) {
 }
 
 function walkTo(e: Entity) {
-  const off = e.kind === 'bay' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : 0
+  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : 0
   const pos: Vec3 = [e.center[0] + e.face[0] * off, 1.7, e.center[2] + e.face[2] * off]
   // Face the entity: yaw 0 looks toward -Z, so look back along the face vector.
   const yaw = Math.atan2(e.face[0], e.face[2])
   rig.setMode('walk', { pos, yaw })
 }
 /** Bins sit on a 1.4 m cart aisle, so the camera stays inside it; everything else gets the default standoff. */
-const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, e.kind === 'bin' ? 0.7 : undefined)
+const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : undefined)
 const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.doorTarget ? 0 : 1; e.state = e.doorTarget ? (e.trailerId ? e.state : 'EMPTY') : 'CLOSED'; building.animateDoor(e); ui.select(e); syncDoorButton() } }
 
 ui.onAction = (a, e) => {
@@ -131,7 +131,7 @@ const focusGo = () => { const e = facility.byId.get(focusInput.value.trim().toUp
 document.getElementById('btn-focus')!.onclick = focusGo
 focusInput.addEventListener('change', focusGo)
 const busyDocks = facility.docks.filter(d => d.trailerId).length
-document.getElementById('btn-brief')!.onclick = () => alert(`FC-DFW7 · full hall · phase 1\n\n${HALL.w.toFixed(0)} × ${HALL.d.toFixed(0)} m · ${facility.docks.length} dock doors (${busyDocks} occupied) · ${facility.bays.length} rack bays · ${facility.bays.reduce((n, b) => n + b.slots.filter(s => s.lpn).length, 0)} reserve pallets · ${facility.bins.length} barcoded bins · ${facility.zones.length} zones\n\nEvery object is at real dimensions (1 unit = 1 m).`)
+document.getElementById('btn-brief')!.onclick = () => alert(`FC-DFW7 · full hall · phase 1\n\n${HALL.w.toFixed(0)} × ${HALL.d.toFixed(0)} m · ${facility.docks.length} dock doors (${busyDocks} occupied) · ${facility.bays.length} rack bays · ${facility.bays.reduce((n, b) => n + b.slots.filter(s => s.lpn).length, 0)} reserve pallets · ${facility.faces.length} pick faces · ${facility.bins.length} barcoded bins · ${facility.zones.length} zones\n\nEvery object is at real dimensions (1 unit = 1 m).`)
 window.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).tagName === 'INPUT') return
   if (e.key === 'f' || e.key === 'F') { if (ui.selected) flyTo(ui.selected) }

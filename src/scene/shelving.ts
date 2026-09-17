@@ -95,7 +95,7 @@ export class Shelving {
  * AkroBin-style shelf bin, hollow with 4 mm walls: full-height back, open top, hopper front at 55% height
  * with a lip and a sloped hood. Front is +Z, origin at the bottom centre.
  */
-function makeBinGeometry(): THREE.BufferGeometry {
+export function makeBinGeometry(): THREE.BufferGeometry {
   const { L, W, H } = BIN
   const t = 0.004
   const s = new THREE.Shape()

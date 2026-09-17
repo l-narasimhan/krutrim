@@ -86,7 +86,13 @@ export const moduleCode = (m: StorageModule) => m.id.replace('RES-', 'R').replac
 interface Base { kind: string; id: string; center: Vec3; size: Vec3; face: Vec3 }
 
 export interface PalletSlot { level: number; pos: number; lpn: string | null; sku: string | null; qty: number; instance: number; wrapped: boolean }
-export interface PickFace { id: string; level: number; y: number; sku: string | null; product: string | null; qty: number }
+/** How a pick face is fitted out: open cases on the deck, gravity carton-flow lanes, or large shelf bins. */
+export type FaceFit = 'hand' | 'flow' | 'bins'
+export interface PickFace extends Base {
+  kind: 'face'; module: string; bayId: string; level: number; fit: FaceFit; aisle: string; faceDir: 1 | -1
+  local: Vec3
+  sku: string | null; product: string | null; qty: number; capacity: number; velocity: 'A' | 'B' | 'C'; lastPick: string; lastReplen: string
+}
 export interface Bay extends Base {
   kind: 'bay'; module: string; row: number; side: 'A' | 'B'; index: number; aisle: string; faceDir: 1 | -1
   /** Local-frame centre for the module renderer. */
@@ -104,10 +110,10 @@ export interface Dock extends Base {
   state: DockState; progress: number; units: number; doorOpen: number; doorTarget: number; minutesAtDoor: number
 }
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | Dock | Zone
+export type Entity = Bay | Bin | PickFace | Dock | Zone
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; docks: Dock[]; zones: Zone[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -129,12 +135,12 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], docks: Dock[] = [], zones: Zone[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
   for (const m of MODULES) {
-    if (m.kind === 'rack') baysOf.set(m.id, buildRackModule(m, bays, byId))
+    if (m.kind === 'rack') baysOf.set(m.id, buildRackModule(m, bays, faces, byId))
     else binsOf.set(m.id, buildShelfModule(m, bins, byId))
   }
 
@@ -169,12 +175,12 @@ export function buildFacility(): Facility {
   }
 
   void rand
-  return { bays, bins, docks, zones, byId, baysOf, binsOf }
+  return { bays, bins, faces, docks, zones, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.
  *  Pallet slots RA-07-012-C1 (levels C–E, positions 1–2), pick faces RA-07-012-A / -B. */
-function buildRackModule(m: StorageModule, all: Bay[], byId: Map<string, Entity>): Bay[] {
+function buildRackModule(m: StorageModule, all: Bay[], allFaces: PickFace[], byId: Map<string, Entity>): Bay[] {
   const out: Bay[] = []
   const code = moduleCode(m)
   let palletInstance = 0
@@ -189,10 +195,22 @@ function buildRackModule(m: StorageModule, all: Bay[], byId: Map<string, Entity>
         const bayNo = side === 'A' ? 2 * b + 2 : 2 * b + 1
         const id = `${code}-${pad(aisleNo, 2)}-${pad(bayNo, 3)}`
         const slots: PalletSlot[] = [], faces: PickFace[] = []
+        const local: Vec3 = [u, RACK.uprightH / 2, vFrame]
+        // Fit-out is per bay: a bay's two faces share lanes or shelving hardware, as they would be installed.
+        const fit: FaceFit = pick(['hand', 'hand', 'flow', 'flow', 'flow', 'bins', 'bins'])
         for (let l = 0; l < RACK.levels; l++) {
           if (l < RACK.pickLevels) {
             const filled = chance(0.9)
-            faces.push({ id: `${id}-${'ABCDE'[l]}`, level: l, y: l * RACK.levelPitch, sku: filled ? sku() : null, product: filled ? pick(PRODUCTS) : null, qty: filled ? randInt(6, 120) : 0 })
+            const capacity = fit === 'bins' ? 6 * 24 : fit === 'flow' ? 9 * 12 : 4 * 12
+            const baseY = l === 0 ? 0 : l * RACK.levelPitch + RACK.beamH / 2
+            const face: PickFace = {
+              kind: 'face', id: `${id}-${'ABCDE'[l]}`, module: m.id, bayId: id, level: l, fit, aisle: `AISLE ${pad(aisleNo, 2)}`, faceDir,
+              local: [u, baseY + RACK.levelPitch / 2 - 0.05, vFrame],
+              center: toWorld(m, u, baseY + RACK.levelPitch / 2 - 0.05, vFrame), size: [RACK.frameDepth + 0.3, RACK.levelPitch - 0.2, RACK.bayPitch - 0.1], face: [faceDir, 0, 0],
+              sku: filled ? sku() : null, product: filled ? pick(PRODUCTS) : null, qty: filled ? randInt(Math.round(capacity * 0.1), capacity) : 0, capacity,
+              velocity: pick(['A', 'A', 'B', 'B', 'B', 'C']), lastPick: ago(4), lastReplen: ago(30),
+            }
+            faces.push(face); allFaces.push(face); byId.set(face.id, face)
             continue
           }
           for (let p = 0; p < 2; p++) {
@@ -200,7 +218,6 @@ function buildRackModule(m: StorageModule, all: Bay[], byId: Map<string, Entity>
             slots.push({ level: l, pos: p, lpn: filled ? `LPN${randInt(1000000, 9999999)}` : null, sku: filled ? sku() : null, qty: filled ? randInt(24, 480) : 0, instance: filled ? palletInstance++ : -1, wrapped: filled ? chance(0.8) : false })
           }
         }
-        const local: Vec3 = [u, RACK.uprightH / 2, vFrame]
         const bay: Bay = {
           kind: 'bay', id, module: m.id, row: r, side, index: b, aisle: `AISLE ${pad(aisleNo, 2)}`, faceDir, local,
           center: toWorld(m, u, RACK.uprightH / 2, vFrame), size: [RACK.frameDepth + 0.1, RACK.uprightH + 1.2, RACK.bayPitch], face: [faceDir, 0, 0],

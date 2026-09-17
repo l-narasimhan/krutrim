@@ -1,9 +1,16 @@
-import type { Entity, Bay, Bin, Dock, Zone, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
 const fmt = (n: number) => n.toLocaleString('en-US')
+
+const FIT_NAME = { hand: 'Hand-stack, cut cases on wire deck', flow: 'Carton flow, 3 gravity roller lanes', bins: 'Bin shelving, 6 × 18 in hopper bins' }
+const FIT_SPEC = {
+  hand: 'Cut cases on the wire deck, closed reserve cases behind · picker takes eaches from the open case',
+  flow: 'Three 32 in carton-flow lanes on skate-wheel track, 120 mm back-to-front drop · loaded from the flue side, cases roll to the pick front',
+  bins: 'Six AkroBin 30-280 style hopper bins, 18 × 16½ × 11 in, on the wire deck · one SKU per face',
+}
 
 type Level = 'INFO' | 'WARN' | 'CRIT'
 interface Ev { t: string; level: Level; src: string; msg: string }
@@ -21,7 +28,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -66,6 +73,7 @@ export class Console {
     const p = (arr: string[]) => arr[Math.floor(r() * arr.length)]
     const bay = () => this.f.bays[Math.floor(r() * this.f.bays.length)].id
     const bin = () => this.f.bins[Math.floor(r() * this.f.bins.length)].id
+    const face = () => this.f.faces[Math.floor(r() * this.f.faces.length)].id
     const n = (a: number, b: number) => Math.floor(a + r() * (b - a + 1))
     const busy = this.f.docks.filter(d => d.trailerId)
     const dock = () => busy[Math.floor(r() * busy.length)]
@@ -74,6 +82,8 @@ export class Console {
     const t = new Date().toISOString().slice(11, 19)
     if (roll < 0.83) ev = { t, level: 'INFO', src: p(['WMS', 'WMS', 'WMS', 'DOCK', 'PACK', 'RF']), msg: p([
       `Pick confirmed · ${bin()} · ${n(1, 4)} ea · tote T${n(100000, 999999)}`,
+      `Pick confirmed · ${face()} · ${n(1, 6)} ea · tote T${n(100000, 999999)}`,
+      `Replenishment complete · ${face()} · pallet dropped from level ${p(['C', 'D', 'E'])}`,
       `Stow complete · ${bin()} · ${n(4, 24)} ea · ${p(['M. Okafor', 'J. Alvarez', 'R. Chen', 'T. Nguyen', 'S. Patel'])}`,
       `Putaway · ${bay()} · LPN${n(1000000, 9999999)} · reach truck RT-0${n(1, 6)}`,
       `Replenishment task created · ${bay()} → ${bin()}`,
@@ -120,6 +130,8 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="${e.fill > 0.9 ? 'warn' : 'ok'}">● ${e.fill > 0.9 ? 'FULL' : 'NOMINAL'}</span></h4><dl><dt>Aisle</dt><dd>${e.aisle} · side ${e.side}</dd><dt>Pallets</dt><dd>${pal} / ${e.slots.length}</dd><dt>Units</dt><dd>${fmt(e.slots.reduce((a, s) => a + s.qty, 0))}</dd><dt>Last count</dt><dd>${e.lastCount}</dd></dl><div class="hint">CLICK · INSPECT BAY</div>`
     } else if (e.kind === 'bin') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.sku ? 'ok' : ''}">● ${e.sku ? 'STOCKED' : 'EMPTY'}</span></h4><dl><dt>Aisle</dt><dd>${e.aisle}</dd><dt>Product</dt><dd>${e.product ?? '—'}</dd><dt>SKU</dt><dd>${e.sku ?? '—'}</dd><dt>Qty</dt><dd>${e.qty} ea</dd><dt>Velocity</dt><dd>${e.velocity}</dd></dl><div class="hint">CLICK · SCAN BIN</div>`
+    } else if (e.kind === 'face') {
+      tt.innerHTML = `<h4>${e.id} <span class="${e.sku ? 'ok' : ''}">● ${e.sku ? 'STOCKED' : 'EMPTY'}</span></h4><dl><dt>Pick face</dt><dd>${FIT_NAME[e.fit]}</dd><dt>Product</dt><dd>${e.product ?? '—'}</dd><dt>SKU</dt><dd>${e.sku ?? '—'}</dd><dt>Qty</dt><dd>${e.qty} / ${e.capacity} ea</dd><dt>Velocity</dt><dd>${e.velocity}</dd></dl><div class="hint">CLICK · SCAN FACE</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
     } else {
@@ -136,6 +148,7 @@ export class Console {
     if (!e) { $('ins-kind').textContent = 'INSPECTOR'; $('ins-id').textContent = 'NOTHING SELECTED'; $('ins-status').className = 'chip'; $('ins-status').textContent = ''; $('ins-body').innerHTML = '<p class="muted">Hover any rack bay, bin, dock door or floor zone for a readout. Click to inspect.</p>'; return }
     if (e.kind === 'bay') this.renderBay(e)
     else if (e.kind === 'bin') this.renderBin(e)
+    else if (e.kind === 'face') this.renderFace(e)
     else if (e.kind === 'dock') this.renderDock(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
@@ -230,5 +243,27 @@ export class Console {
       <div class="sec meta"><div><label>Area</label><span>${e.name}</span></div><div><label>Size</label><span>${a.w.toFixed(1)} × ${a.d.toFixed(1)} m · ${fmt(Math.round(a.w * a.d))} m²</span></div><div><label>Origin</label><span>x ${a.x.toFixed(1)} · z ${a.z.toFixed(1)}</span></div></div>
       ${e.note ? `<div class="sec"><label>What stands here</label><div class="spec">${e.note}</div></div>` : ''}
       <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+  }
+
+  private renderFace(e: PickFace) {
+    this.head('PICK FACE', e.id, e.sku ? 'STOCKED' : 'EMPTY', e.sku ? 'ok' : '')
+    const hist = this.history(e.id, e.velocity === 'A' ? 60 : e.velocity === 'B' ? 24 : 8, 10)
+    const bay = this.f.byId.get(e.bayId) as Bay
+    const reserve = bay.slots.filter(s => s.lpn).length
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Aisle</label><span>${e.aisle}</span></div><div><label>Bay · level</label><span>${e.bayId.split('-')[2]} · ${'ABCDE'[e.level]}</span></div><div><label>Fit-out</label><span>${e.fit.toUpperCase()}</span></div></div>
+      <div class="sec"><label>Location label · Code 128</label><canvas class="barcode" id="bc"></canvas></div>
+      <div class="sec"><label>Pick face spec</label><div class="spec">${FIT_SPEC[e.fit]} · level ${'ABCDE'[e.level]} at ${e.level === 0 ? '0.00' : '1.75'} m · reserve pallets on levels C–E above</div></div>
+      <div class="sec tiles"><div class="tile"><label>Product</label><b style="font-size:11px">${e.product ?? '—'}</b></div><div class="tile"><label>SKU</label><b style="font-size:11px">${e.sku ?? '—'}</b></div><div class="tile"><label>On hand</label><b>${e.qty}<span>/ ${e.capacity} ea</span></b></div><div class="tile"><label>Velocity</label><b>${e.velocity}<span>${e.velocity === 'A' ? 'fast' : e.velocity === 'B' ? 'medium' : 'slow'}</span></b></div><div class="tile"><label>Last pick</label><b style="font-size:11px">${e.lastPick}</b></div><div class="tile"><label>Last replen</label><b style="font-size:11px">${e.lastReplen}</b></div></div>
+      <div class="sec"><label>Picks per hour · 48 h</label><canvas class="spark" id="spk"></canvas><div class="spark-foot"><span>min ${Math.min(...hist).toFixed(0)}</span><span>now ${hist[hist.length - 1].toFixed(0)}</span><span>max ${Math.max(...hist).toFixed(0)}</span></div></div>
+      <div class="sec"><label>Fill</label><div class="barrow"><span>Units vs face capacity</span><b>${e.qty} / ${e.capacity}</b></div><div class="bar${e.qty / e.capacity < 0.2 ? ' warn' : ''}"><i style="width:${Math.min(100, e.qty / e.capacity * 100)}%"></i></div><div class="barrow"><span>Reserve above · ${e.bayId}</span><b>${reserve} pallets</b></div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
+    const c = $<HTMLCanvasElement>('bc')
+    c.width = 640; c.height = 128
+    const ctx = c.getContext('2d')!
+    ctx.fillStyle = '#f7f5f0'; ctx.fillRect(0, 0, 640, 128)
+    ctx.fillStyle = '#111'; ctx.font = 'bold 30px "JetBrains Mono", monospace'; ctx.textBaseline = 'top'; ctx.fillText(e.id, 24, 12)
+    drawBarcode(ctx, e.id, 16, 52, 608, 64)
+    this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
   }
 }

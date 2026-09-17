@@ -103,7 +103,7 @@ function shelfModule(id: string, name: string, x: number, z: number, w: number, 
 
 export const MODULES: StorageModule[] = [
   rackModule('RES-A', 'Reserve racking A, hybrid pick', -118, -58, 158, 72),
-  rackModule('RES-B', 'Reserve racking B, hybrid pick', 44, -38, 60, 52),
+  rackModule('RES-B', 'Reserve racking B, hybrid pick', 44, -34, 60, 48),
   shelfModule('FM-1', 'Fast-mover shelving module (mezzanine-ready)', 64, -58, 40, 20),
 ]
 
@@ -154,7 +154,7 @@ export const AREAS: Area[] = [
   A('PKG', 'Packaging supplies', 'support', 80, 21, 41.92, 29, 'Box, mailer, dunnage and tape racking'),
   // Storage
   A('RES-A', 'Reserve racking A, hybrid pick', 'storage', -118, -58, 158, 72),
-  A('RES-B', 'Reserve racking B, hybrid pick', 'storage', 44, -38, 60, 52),
+  A('RES-B', 'Reserve racking B, hybrid pick', 'storage', 44, -34, 60, 48),
   A('REPL', 'Replenishment staging', 'storage', 44, -58, 20, 20, 'Reserve-to-pick pallets by aisle'),
   A('FM-1', 'Fast-mover shelving module', 'storage', 64, -58, 40, 20, 'Halved 2026-09-17; single level, mezzanine footprint kept'),
   // Outbound band, north to south
@@ -186,6 +186,7 @@ export const AREAS: Area[] = [
   A('AISLE-E', 'East walkway', 'circulation', 104, -76, 2, 97),
   A('XA-1', 'Cross aisle', 'circulation', -118, -24, 158, RACK.crossAisle),
   A('XA-2', 'Cross aisle', 'circulation', -118, -61, 222, 3),
+  A('XA-3', 'Cross aisle, FM-1 south entry', 'circulation', 44, -38, 60, 4),
 ]
 
 // ---- Yard ----------------------------------------------------------------------------------------------------

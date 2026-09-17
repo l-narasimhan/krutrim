@@ -23,9 +23,10 @@ npm run plan       # render the labelled hall plan (docs/plan/) from src/layout.
   insulated metal panel walls with 62 door openings, W10 columns, joist girders and bar joists, painted roof deck,
   960 LED high-bays, sprinkler mains and branch lines, cable tray on both dock walls, every zone outlined and
   named on the floor, every aisle numbered at both ends, hazard hatching at every door.
-- **Reserve racking, hybrid pick.** RES-A (25 double rows × 24 bays) and RES-B (9 × 17), 1,506 bays of
-  42" teardrop frames, 24' uprights, 108" step beams, wire decking. Levels A–B are pick faces (IDs assigned,
-  fit-out in task 3.7); levels C–E hold about 9,000 GMA pallets with case loads and LPN labels.
+- **Reserve racking, hybrid pick.** RES-A (25 double rows × 24 bays) and RES-B (9 × 15), 1,470 bays of
+  42" teardrop frames, 24' uprights, 108" step beams, wire decking. Levels A–B are 2,940 pick faces, each fitted
+  as hand-stack cut cases, three carton-flow roller lanes, or six 18 in hopper bins, with its own scannable label;
+  levels C–E hold about 9,000 GMA pallets with case loads and LPN labels.
 - **Fast-mover module FM-1.** 16 double rows of rivet shelving on 1.4 m cart aisles with 10,400 hopper-front
   bins. Every bin, pallet and bay carries a real Code 128 label drawn per pixel in the shader.
 - **Docks.** 62 doors (26 inbound, 4 returns, 2 waste, 30 outbound with carrier lanes), each with sectional
