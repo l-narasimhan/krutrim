@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RACK, PALLET, MODULES, AREAS, aisleV, type Facility, type Person, type Truck, type PickFace, type Role } from '../facility'
+import { RACK, PALLET, MODULES, AREAS, aisleV, type Facility, type Person, type Truck, type PickFace, type Role, type Ladder } from '../facility'
 import { TOTE_DROPS, type FlowMode } from '../layout'
 import { boxAt, cylAt, setInstance, mergeAny } from './util'
 import { makeToteGeometry } from './conveyor'
@@ -16,7 +16,7 @@ const SKIN = [0xf1c9a5, 0xe0ac7e, 0xc68642, 0x8d5524, 0x5c3a1e, 0xf5d6c6]
 const SHIRT = [0x2b2f3a, 0x3b3f46, 0x1d2a44, 0x4a4a4a, 0x5a3d2b, 0x223b2a]
 const PANTS = [0x1f2a44, 0x2b2b2b, 0x3a3a3a, 0x4b3b2a]
 
-type Pose = 'idle' | 'walk' | 'scan' | 'pick' | 'place' | 'work' | 'drive' | 'sit'
+type Pose = 'idle' | 'walk' | 'scan' | 'pick' | 'place' | 'work' | 'drive' | 'sit' | 'climb'
 
 class Skeleton {
   root = new THREE.Object3D()
@@ -90,6 +90,18 @@ class Skeleton {
         // Hands over a bench, small alternating motion.
         sL.rotation.x = -0.75 + 0.2 * Math.sin(t * 3); sR.rotation.x = -0.75 - 0.2 * Math.sin(t * 3 + 1); eL.rotation.x = -1.1; eR.rotation.x = -1.1; this.torso.rotation.x = 0.12
         break
+      case 'climb':
+        // Working a ladder: hands alternate overhead, feet alternate on the treads, body pitched into the
+        // rungs. The root carries the height; the hips stay at standing height above the tread.
+        {
+          const c = Math.sin(phase)
+          this.torso.rotation.x = 0.10
+          sL.rotation.x = -2.05 + c * 0.42; sR.rotation.x = -2.05 - c * 0.42
+          eL.rotation.x = -0.40 + c * 0.15; eR.rotation.x = -0.40 - c * 0.15
+          hL.rotation.x = -0.55 + c * 0.45; hR.rotation.x = -0.55 - c * 0.45
+          kL.rotation.x = 1.15 - c * 0.30;   kR.rotation.x = 1.15 + c * 0.30
+        }
+        break
       case 'drive':
       case 'sit':
         this.hips.position.y = seatY
@@ -106,10 +118,16 @@ type Step =
   | { kind: 'scan'; face: PickFace }
   | { kind: 'hold'; pose: Pose; dur: number; task?: string; facing?: number }
   | { kind: 'drop'; at: [number, number] }
+  /** Mount, work the top, dismount. `up` is the direction of travel. */
+  | { kind: 'climb'; ladder: Ladder; up: boolean }
 interface Actor {
   p: Person; x: number; z: number; yaw: number; phase: number; t: number
+  /** Height of the feet above the floor. Non-zero only while on a ladder. */
+  y: number
   steps: Step[]; i: number; stepT: number; pose: Pose; cart: number; seatY: number
   aimTarget: THREE.Vector3 | null; scanned: boolean; truck: number
+  /** The aisle ladder this associate works, if any. */
+  ladder: Ladder | null
 }
 interface Vehicle {
   t: Truck; x: number; z: number; yaw: number; steps: Step[]; i: number; stepT: number; lift: number; liftTarget: number; driver: Actor
@@ -220,7 +238,7 @@ export class People {
     let cart = 0
     const byRole = (r: Role) => f.people.filter(p => p.role === r)
     const actor = (p: Person, x: number, z: number, yaw = 0): Actor => {
-      const a: Actor = { p, x, z, yaw, phase: rng() * 6, t: rng() * 10, steps: [], i: 0, stepT: 0, pose: 'idle', cart: -1, seatY: 0, aimTarget: null, scanned: false, truck: -1 }
+      const a: Actor = { p, x, z, yaw, y: 0, phase: rng() * 6, t: rng() * 10, steps: [], i: 0, stepT: 0, pose: 'idle', cart: -1, seatY: 0, aimTarget: null, scanned: false, truck: -1, ladder: null }
       this.actors.push(a); return a
     }
     // Pickers: 15 in reserve racking aisles, 5 in the fast-mover module, each with a cart. Two of them are on break.
@@ -235,11 +253,20 @@ export class People {
       const a = actor(p, x, m.z + m.d - 2, 0)
       a.cart = cart++
       a.steps = this.pickLoop(p, m.id, x, m.z, m.z + m.d, inFm)
+      // A picker in four works the upper level partway through the round: the pick face at level B is 1.75 m
+      // up, which is what the aisle ladder is there for.
+      if (i % 4 === 0) {
+        const lad = this.ladderFor(x, m.id)
+        if (lad) { a.ladder = lad; a.steps.push(...this.climbSteps(lad, m.id)) }
+      }
     })
     this.pickerLoop = (a: Actor) => {
       const inFm = a.p.zone === 'FM-1'
       const m = inFm ? fm1 : resA
-      return this.pickLoop(a.p, m.id, a.steps.length && a.steps[0].kind === 'walk' ? a.steps[0].to[0] : a.x, m.z, m.z + m.d, inFm)
+      const steps = this.pickLoop(a.p, m.id, a.steps.length && a.steps[0].kind === 'walk' ? a.steps[0].to[0] : a.x, m.z, m.z + m.d, inFm)
+      // The climb is part of the round, so it has to be put back when the round is rebuilt.
+      if (a.ladder) steps.push(...this.climbSteps(a.ladder, m.id))
+      return steps
     }
     // Packers, receivers and QC work their stations.
     for (const role of ['packer', 'receiver', 'qc'] as const) byRole(role).forEach(p => {
@@ -355,6 +382,38 @@ export class People {
     return steps
   }
 
+  /** The aisle ladder nearest this picker's aisle. */
+  private ladderFor(x: number, module: string): Ladder | null {
+    const near = this.f.ladders.filter(l => l.module === module)
+    if (!near.length) return null
+    return near.reduce((b, l) => (Math.abs(l.center[0] - x) < Math.abs(b.center[0] - x) ? l : b))
+  }
+
+  /**
+   * Mount, work the upper pick level, dismount.
+   *
+   * Deliberately takes NO draws from the shared stream. This sequence is appended to existing picker loops,
+   * and every draw in this file is consumed in a fixed order that the order trace and the console depend on.
+   */
+  private climbSteps(ladder: Ladder, module: string): Step[] {
+    const face = this.f.faces
+      .filter(fc => fc.module === module && fc.level === 1 && fc.sku &&
+        Math.hypot(fc.center[0] - ladder.center[0], fc.center[2] - ladder.center[2]) < 3.2)
+      .sort((a, b) => Math.abs(a.center[2] - ladder.center[2]) - Math.abs(b.center[2] - ladder.center[2]))[0] ?? null
+    const facing = ladder.yaw + Math.PI          // square up to the rungs
+    const ax = ladder.center[0] + Math.sin(ladder.yaw) * 1.5
+    const az = ladder.center[2] + Math.cos(ladder.yaw) * 1.5
+    const out: Step[] = [
+      { kind: 'walk', to: [ax, az] },
+      { kind: 'climb', ladder, up: true },
+    ]
+    if (face) out.push({ kind: 'hold', pose: 'scan', dur: 1.1, task: `Scanning ${face.id}`, facing })
+    out.push({ kind: 'hold', pose: 'pick', dur: 3.4, facing, task: face ? `Picking ${face.product} from level B` : `Working level B · ${ladder.aisle}` })
+    out.push({ kind: 'hold', pose: 'place', dur: 1.2, task: 'Placing in tote', facing })
+    out.push({ kind: 'climb', ladder, up: false })
+    return out
+  }
+
   // ---- Per-frame -------------------------------------------------------------------------------------------
   update(dt: number) {
     for (const v of this.vehicles) this.stepVehicle(v, dt)
@@ -378,6 +437,7 @@ export class People {
       if (d < 0.05) { finish(); return }
       const step = Math.min(d, sp * dt)
       a.x += dx / d * step; a.z += dz / d * step; a.yaw = Math.atan2(dx, dz)
+      a.y = 0
       a.phase += step * 3.4
       a.pose = 'walk'
       if (a.cart >= 0 && this.mode === 'walk' && a.i > a.steps.length - 12 && a.i < a.steps.length - 6) a.p.task = 'Carrying tote to the pack drop'
@@ -394,6 +454,24 @@ export class People {
       if (s.facing !== undefined) a.yaw = s.facing
       if (s.pose === 'scan') a.p.scanning = true
       if (a.stepT > s.dur) finish()
+    } else if (s.kind === 'climb') {
+      const L = s.ladder
+      const DUR = 2.8
+      const t = Math.min(1, a.stepT / DUR)
+      const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      const f = s.up ? e : 1 - e
+      // Local +z is the mounting side; the ladder climbs toward its own -z, which stands against the rack.
+      const z0 = L.type === 'rolling' ? 0.52 : 0.30
+      const z1 = L.type === 'rolling' ? -0.30 : -0.02
+      const lz = z0 + (z1 - z0) * f + 0.12
+      a.x = L.center[0] + lz * Math.sin(L.yaw)
+      a.z = L.center[2] + lz * Math.cos(L.yaw)
+      a.y = L.platformH * f
+      a.yaw = L.yaw + Math.PI          // square up to the rungs
+      a.pose = 'climb'
+      a.phase += dt * 5.5
+      a.p.task = s.up ? `Working level B · ${L.aisle}` : `Climbing down · ${L.aisle}`
+      if (t >= 1) { a.y = s.up ? L.platformH : 0; finish() }
     } else if (s.kind === 'drop') {
       a.pose = 'place'; a.yaw = Math.atan2(s.at[0] - a.x, s.at[1] - a.z); a.p.task = this.mode === 'walk' ? 'Dropping tote at the pack drop' : 'Dropping tote on takeaway conveyor'
       if (a.stepT > 0.5 && !a.scanned) { a.scanned = true; this.onEvent?.('RF', `Tote T${Math.floor(100000 + rng() * 899999)} ${this.mode === 'walk' ? 'dropped at pack drop' : 'inducted · takeaway'} · ${a.p.name}`); this.onDrop?.(a.p, s.at) }
@@ -437,15 +515,15 @@ export class People {
     // A seated driver sits 0.55 m back from the truck origin (the mast end is +z forward).
     const px = seated && a.truck >= 0 ? a.x - Math.sin(a.yaw) * 0.55 : a.x
     const pz = seated && a.truck >= 0 ? a.z - Math.cos(a.yaw) * 0.55 : a.z
-    sk.root.position.set(px, 0, pz); sk.root.rotation.y = a.yaw
+    sk.root.position.set(px, a.y, pz); sk.root.rotation.y = a.yaw
     sk.pose(a.pose, a.phase, a.t, a.seatY)
     sk.root.updateMatrixWorld(true)
     for (const [name, im] of this.parts) {
       if (name === 'scanner' && !(a.pose === 'scan' || a.p.role === 'picker' || a.p.role === 'sorter' || a.p.role === 'receiver')) { setInstance(im, i, 0, -10, 0); continue }
       im.setMatrixAt(i, sk.meshes[name].matrixWorld)
     }
-    a.p.center = [a.x, 0.9, a.z]; a.p.face = [Math.sin(a.yaw), 0, Math.cos(a.yaw)]
-    setInstance(this.volumes, i, a.x, seated ? a.seatY : 0.9, a.z, 1, 1, 1, 0, a.yaw, 0)
+    a.p.center = [a.x, a.y + 0.9, a.z]; a.p.face = [Math.sin(a.yaw), 0, Math.cos(a.yaw)]
+    setInstance(this.volumes, i, a.x, seated ? a.seatY : a.y + 0.9, a.z, 1, 1, 1, 0, a.yaw, 0)
     // Aim line from the scanner to the target while scanning.
     if (a.pose === 'scan' && a.aimTarget) {
       const from = this.tmpV.setFromMatrixPosition(sk.meshes.scanner.matrixWorld)

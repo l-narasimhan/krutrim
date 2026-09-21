@@ -13,6 +13,8 @@ Nothing gets built until a task is picked from that list and approved.
 | FC type | E-commerce sortable, **manual** operation: cart picking, hand sort, no loop sorter, no AMRs |
 | Picking | **Hybrid racks (agreed 2026-09-17):** picking happens in the pallet racking. Levels 1–2 of every bay are pick levels fitted with bins, carton-flow or hand-stack shelves; levels above are pallet reserve for the same SKUs, replenished by dropping a pallet down. A smaller dedicated shelving module holds the fastest-moving small items: **FM-1, 40 × 20 m, about 10,400 bins (halved, agreed 2026-09-17).** |
 | Bins | Every pick bin gets a unique, real Code 128 barcode label, legible in first person |
+| Product catalogue | **Real goods, not placeholder shapes (2026-09-21):** the twin carries a real 135-SKU catalogue across household, drinkware, electronics, apparel, health & beauty, baby, pet, toys, sporting, luggage, tools and office. Every entry is a real product category in its real shipping case, at its real case-pack dimensions in metres, with its board grade and pack pattern. Reserve levels hold **sealed cases** — that is what a rack actually stores — and the individual product is only visible at a **pick face**, where the shipper is cut down and the eaches stand loose on the shelf. This applies to **every** rack module, not one pilot. |
+| Catalogue rule | **No grocery: no food, beverage or consumable categories.** Drinkware (reusable bottles, tumblers, flasks) and luggage are in, because both are hard goods that ship as eaches in a retail carton; bottled water, coffee pods and dog food are out. Note `PRODUCTS` in `src/facility.ts` is a pre-3.8 leftover list that still names grocery items and should be retired. |
 | People | Human associates modelled and animated (pickers, packers, receivers, graders, forklift operators) |
 | Returns | Customer returns processing area (receive, grade, restock or liquidate) |
 | Views | Bird's-eye orthographic plan view + first-person walk. **Arrow keys traverse in every mode** (walk, orbit, plan) and on-screen arrow buttons do the same for mouse and touch. |
@@ -48,8 +50,15 @@ A 60 × 40 m slice was built first (`docs/poc/`). On 2026-09-17 the plan was app
 generated from `src/layout.ts` (`docs/hall/`): 62 docks with trailers, reserve racking A and B, the fast-mover
 module, every zone painted and inspectable. First-pass coverage: 0.1–0.4, parts of 1.1–1.5, 2.1, 2.2, 3.1–3.3,
 4.1–4.4, 10.1, 10.2, 11.1, 11.3, 11.4, 11.5. None of those tasks is marked done yet: each still needs its
-realism check against a real photo. Known gaps: no people, no conveyors, rack pick faces (levels A–B) are
-empty until 3.7, procedural (not photo) textures on steel and paint, no ambient occlusion or bloom.
+realism check against a real photo. Known gaps: procedural (not photo) textures on steel and paint, no ambient
+occlusion or bloom, and eaches are one representative geometry per form scaled per instance, so a form's cap
+and label stretch by the same factor as its body.
+
+Since that pass: people and trucks (milestone 9, 3.4), the conveyor and pack-to-ship band (milestone 5, 6.1,
+6.3), equipment (rolling ladders), and the real product catalogue (3.8, 3.9, 4.2 contents). The 2026-09-21
+change worth recording is that **the hall used to read as boxes**: real goods existed in the RES-B pilot only,
+so the AISLE and PICK camera presets — RES-A and FM-1 — both landed on plain cartons, and FM-1's 10,400 bins
+each held a single white block. Real goods now cover every rack module and every shelf bin.
 
 ## Phases
 

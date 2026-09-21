@@ -1,4 +1,4 @@
-import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Lane, Cage, Person, Truck, Facility } from './facility'
+import type { Entity, Bay, Bin, PickFace, Dock, Zone, Station, PutWall, Slam, Lane, Cage, Person, Truck, Ladder, Facility } from './facility'
 import { drawBarcode } from './barcode'
 import { mulberry32 } from './rng'
 
@@ -41,7 +41,7 @@ export class Console {
 
   constructor(private f: Facility) {
     const dl = $('ids')
-    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.lanes.map(x => x.id), ...f.cages.map(x => x.id), ...f.people.map(x => x.id), ...f.trucks.map(x => x.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
+    const ids = [...f.docks.map(d => d.id), ...f.stations.map(x => x.id), ...f.walls.map(x => x.id), ...f.slams.map(x => x.id), ...f.lanes.map(x => x.id), ...f.cages.map(x => x.id), ...f.people.map(x => x.id), ...f.trucks.map(x => x.id), ...f.ladders.map(l => l.id), ...f.zones.map(z => z.id), ...f.bays.map(b => b.id), ...f.faces.map(x => x.id), ...f.bins.map(b => b.id)]
     dl.innerHTML = ids.map(i => `<option value="${i}">`).join('')
     document.querySelectorAll<HTMLButtonElement>('.f').forEach(b => b.onclick = () => {
       document.querySelectorAll('.f').forEach(x => x.classList.remove('on')); b.classList.add('on')
@@ -173,6 +173,8 @@ export class Console {
       tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.carrying ? 'LOADED' : 'EMPTY'}</span></h4><dl><dt>Truck</dt><dd>${e.type === 'reach' ? 'Reach truck' : 'Counterbalance forklift'}</dd><dt>Driver</dt><dd>${(this.f.byId.get(e.driver) as Person).name}</dd><dt>Task</dt><dd>${e.task}</dd><dt>Battery</dt><dd>${e.battery}%</dd></dl><div class="hint">CLICK · INSPECT TRUCK</div>`
     } else if (e.kind === 'dock') {
       tt.innerHTML = `<h4>${e.id} <span class="${e.trailerId ? 'warn' : ''}">● ${e.state}</span></h4><dl><dt>Use</dt><dd>${e.use}</dd><dt>Carrier</dt><dd>${e.carrier}</dd><dt>Trailer</dt><dd>${e.trailerId ?? '—'}</dd><dt>Progress</dt><dd>${(e.progress * 100).toFixed(0)}%</dd><dt>Door</dt><dd>${e.doorTarget ? 'OPEN' : 'CLOSED'}</dd></dl><div class="hint">CLICK · INSPECT DOCK</div>`
+    } else if (e.kind === 'ladder') {
+      tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.type === 'rolling' ? 'ROLLING' : 'STEP'}</span></h4><dl><dt>Type</dt><dd>${e.type === 'rolling' ? 'Rolling safety ladder' : 'Fibreglass step ladder'}</dd><dt>${e.type === 'rolling' ? 'Platform' : 'Height'}</dt><dd>${e.platformH.toFixed(2)} m · ${e.steps} steps</dd><dt>Module</dt><dd>${e.module} · ${e.aisle}</dd></dl><div class="hint">CLICK · INSPECT LADDER</div>`
     } else {
       tt.innerHTML = `<h4>${e.id} <span class="ok">● ${e.group.toUpperCase()}</span></h4><dl><dt>Area</dt><dd>${e.name}</dd><dt>Size</dt><dd>${e.size[0].toFixed(0)} × ${e.size[2].toFixed(0)} m</dd></dl><div class="hint">CLICK · INSPECT ZONE</div>`
     }
@@ -196,6 +198,7 @@ export class Console {
     else if (e.kind === 'person') this.renderPerson(e)
     else if (e.kind === 'truck') this.renderTruck(e)
     else if (e.kind === 'dock') this.renderDock(e)
+    else if (e.kind === 'ladder') this.renderLadder(e)
     else this.renderZone(e)
     document.querySelectorAll<HTMLButtonElement>('#ins-body [data-act]').forEach(b => b.onclick = () => this.onAction?.(b.dataset.act as 'pull', e))
   }
@@ -392,6 +395,21 @@ export class Console {
       <div class="sec"><label>Rate vs target</label><div class="barrow"><span>${e.rate} of ${target} ${unit}</span><b>${Math.round(e.rate / target * 100)}%</b></div><div class="bar${e.rate < target * 0.8 ? ' warn' : ''}"><i style="width:${Math.min(100, e.rate / target * 100)}%"></i></div></div>
       <div class="actions"><button data-act="follow">FOLLOW</button><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
     this.spark($<HTMLCanvasElement>('spk'), hist, '#3ee39a')
+  }
+
+  private renderLadder(e: Ladder) {
+    const rolling = e.type === 'rolling'
+    this.head('LADDER', e.id, rolling ? 'ROLLING' : 'STEP LADDER', 'ok')
+    $('ins-body').innerHTML = `
+      <div class="sec meta"><div><label>Type</label><span>${rolling ? 'Rolling safety ladder' : 'Fibreglass step ladder'}</span></div><div><label>Module</label><span>${e.module}</span></div><div><label>Aisle</label><span>${e.aisle}</span></div></div>
+      <div class="sec"><label>Spec</label><div class="spec">${rolling
+        ? 'Steel rolling safety ladder · 1.52 m platform, 6 steps at 230 mm rise, 610 mm tread width · 760 × 1140 mm base · 100 mm spring-loaded casters that retract under load · tubular handrails both sides · 136 kg duty'
+        : 'Fibreglass step ladder, A-frame · 1.83 m overall, 5 steps · 580 mm base spread · non-conductive rails · slip-resistant feet · 136 kg duty'}</div></div>
+      <div class="sec tiles"><div class="tile"><label>${rolling ? 'Platform' : 'Height'}</label><b>${e.platformH.toFixed(2)}<span>m</span></b></div><div class="tile"><label>Steps</label><b>${e.steps}</b></div><div class="tile"><label>Duty</label><b>${e.capacityKg}<span>kg</span></b></div><div class="tile"><label>Last used</label><b style="font-size:11px">${e.lastUsed}</b></div></div>
+      <div class="sec"><label>Use</label><div class="spec">${rolling
+        ? 'Works the upper pick level. Level B of the hybrid racking is 1.75 m, so a case on it puts the pick at about 2.05 m — above comfortable reach for a full shift. Parked against the rack face, out of the pick path.'
+        : 'Carried to the shelf face when a pick is above shoulder height. The pick module runs to 1.92 m on its top shelf and its cart aisles are only 1.4 m wide, too narrow for a rolling ladder.'}</div></div>
+      <div class="actions"><button class="ghost" data-act="fly">FLY TO</button><button class="ghost" data-act="walk">WALK TO</button></div>`
   }
 
   private renderTruck(e: Truck) {

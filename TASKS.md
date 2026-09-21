@@ -1,7 +1,7 @@
 # Fulcrum Twin — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-17 (milestone 9, 3.4 and 11.2 signed off; 22 DONE).
+Updated every time a task changes state. Last update: 2026-09-21 (3.8 and 3.9 added in REVIEW, 4.2 to REVIEW; the real-goods rollout out of the RES-B pilot).
 
 **Status legend**
 
@@ -23,8 +23,8 @@ Updated every time a task changes state. Last update: 2026-09-17 (milestone 9, 3
 | 0 Foundations | 4 | 1 | 0 | 0 | 3 | 0 |
 | 1 Building shell and yard | 8 | 0 | 0 | 0 | 5 | 3 |
 | 2 Inbound | 9 | 5 | 0 | 0 | 2 | 2 |
-| 3 Reserve storage and rack picking | 7 | 2 | 0 | 0 | 3 | 2 |
-| 4 Pick module | 7 | 0 | 0 | 0 | 4 | 3 |
+| 3 Reserve storage and rack picking | 9 | 2 | 2 | 0 | 3 | 2 |
+| 4 Pick module | 7 | 0 | 1 | 0 | 3 | 3 |
 | 5 Pack, SLAM, manual sort | 6 | 5 | 0 | 0 | 0 | 1 |
 | 6 Outbound | 3 | 2 | 0 | 0 | 0 | 1 |
 | 7 Returns | 4 | 0 | 0 | 0 | 0 | 4 |
@@ -34,7 +34,7 @@ Updated every time a task changes state. Last update: 2026-09-17 (milestone 9, 3
 | 11 Console | 5 | 1 | 0 | 0 | 4 | 0 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **80** | **22** | **0** | **0** | **25** | **33** |
+| **Total** | **82** | **22** | **3** | **0** | **24** | **33** |
 
 ## Next up
 
@@ -92,13 +92,15 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | 3.4 | Forklifts and reach trucks: detailed models, parked and driving with mast animation | M | DONE | A truck drives an aisle and stops at a bay | Built 2026-09-17 with milestone 9 (`scene/people.ts`): four reach trucks RT-01…04 run putaway loops from staging down a RES-A aisle, stop at a bay, raise the mast, set the pallet and return; two counterbalance forklifts FL-01…02 cycle pallets from an occupied inbound door to staging; drivers seated; inspector shows driver, task, battery, hour meter. Models are proportioned but simple: no tyres tread, hydraulics or decals yet. Signed off by Lan 2026-09-17 |
 | 3.5 | Hazmat cage and high-value cage: fenced, gated, signed, own racking and shelving | S | TODO | Both cages labelled and inspectable | New 2026-09-17; placed on the north wall between inbound and returns (HAZ, HV in `src/layout.ts`), agreed 2026-09-17 |
 | 3.6 | Replenishment staging: reserve-to-pick pallets staged at the pick module ends | S | TODO | Staged replen pallets carry destination labels | New 2026-09-17 |
+| 3.8 | Real product catalogue and real rack contents: every case at its real corrugated dimensions, board grade and pack pattern, holding the product that matches the SKU, on **every** rack module | L | REVIEW | Any pick face shows the real product for its SKU standing in a cut case; reserve levels show sealed cases | Built 2026-09-20/21 (`src/catalog.ts`, `scene/goods.ts`, `scene/rackloads.ts`, `scene/pickgoods.ts`): a 135-SKU catalogue with real case-pack dimensions in metres, form (RSC, shoebox, polybag, tub, roll, tray, drum, mailer, flat), pack pattern (column / interlock / pinwheel / hybrid) and board grade; cases are chamfered convex hulls at 44 tris with a C-flute corrugation normal map and world-metre UVs; load building walks a real pallet pattern per bay; pick faces cut the shipper down and stand the eaches in it. **Rolled out from the RES-B pilot to every rack module 2026-09-21** — with one module on real goods the AISLE camera landed on plain cartons and the hall read as boxes. Measured at the AISLE preset: 11k → 60k triangles, 157 → 277 draw calls, still 60 fps. Eaches are one representative geometry per form scaled per instance, so a form's cap and label are stretched by the same factor as its body. Not yet signed off |
+| 3.9 | Luggage and drinkware: real suitcases and bottles as eaches, with their own unit forms and geometry | M | REVIEW | A pick face carrying a suitcase shows a suitcase; a drinkware face shows bottles | Built 2026-09-21: **Luggage** (10 SKUs — carry-on 22 in, hardside 20 in, checked 26 in and 29 in, 2 pc set, duffel, garment bag, underseat tote, ride-on, packing cubes) and **Drinkware** (8 SKUs — insulated 32/24 oz, tumbler 20 oz, travel mug, vacuum flask, kids, glass, brush set). New `suitcase` and `ball` unit forms: the case is a clear-coated polycarbonate clamshell with a proud zip band, four spinner wheels and retracted telescoping handle; luggage draws from a real colour palette (black, silver, navy, oxblood, teal) so a luggage wall reads as luggage, not as uniform cartons. The bottle was rebuilt base-to-closure so the shoulder reads as a bottle rather than a tin. **No beverages**: drinkware is hard goods that ship as eaches, bottled water is grocery and stays out under the catalogue rule — say the word if that rule should change. `UNIT_FORMS` is now declared once in `goods.ts`; it lived in two modules, and adding a form to one of them silently emptied the other's shelves. Verified in-scene by a DOM scan of all 13,343 faces and bins. Not yet signed off |
 
 ## 4 Pick module
 
 | ID | Task | Size | Status | Done when | Notes |
 |---|---|---|---|---|---|
 | 4.1 | Fast-mover shelving module (smaller than first planned): rivet shelving, posts, shelves, dividers, kick plates | M | POC | Rows render instanced at real proportions | FM-1: 16 double rows × 26 units on 1.4 m cart aisles; no dividers or kick plates yet |
-| 4.2 | Bins: instanced, 3 size variants, partially filled with product shapes | M | POC | About 10,000 bins in a handful of draw calls | 10,400 bins in FM-1, one size, hollow, with contents, 3 draw calls |
+| 4.2 | Bins: instanced, 3 size variants, partially filled with product shapes | M | REVIEW | About 10,000 bins in a handful of draw calls | 10,400 bins in FM-1, one size, hollow, 3 draw calls. **Contents rebuilt 2026-09-21**: each bin now holds the eaches of the SKU it actually carries, from the same catalogue the rack faces use, instead of one plain white box — a bin of drinkware holds bottles, a bin of bagged apparel holds pouches. One InstancedMesh per unit form. An oversized each is scaled to fit its bin rather than clipping the steel, which is the standing simplification. Occupancy follows the bin's quantity, so a picked-down bin reads as picked-down. No dividers or kick plates yet, still one bin size |
 | 4.3 | Barcode labels: Code 128 encoder, one label per bin, drawn per pixel in the shader from a data texture | L | POC | Label readable; a phone app scans it off the screen | Replaced the bitmap atlas 2026-09-17: 10,400 bin labels + 9,000 LPN labels + 1,506 placards as one data texture each (`scene/labels.ts`), crisp at any distance; phone scan not yet verified |
 | 4.4 | Bin inspection: click to scan, location, SKUs, quantities, last stow / pick, velocity | M | POC | Scanning any bin gives correct data | Working |
 | 4.5 | Pick carts and totes: carts with tote positions, two tote colours, handheld on cart | S | TODO | Carts in aisles and with pickers | |

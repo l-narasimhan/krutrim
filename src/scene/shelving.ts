@@ -2,9 +2,20 @@ import * as THREE from 'three'
 import { SHELF, BIN, type Bin, rowV, bayU, toWorld, moduleOrigin, MODULE_ROT_Y } from '../facility'
 import type { StorageModule } from '../layout'
 import { setInstance, boxAt, mergeAny } from './util'
-import { rng } from '../rng'
+import { mulberry32, rng } from '../rng'
 import { LabelField } from './labels'
 import type { Mats } from './mats'
+import { productForSku, unitOf, type UnitForm } from '../catalog'
+import { unitGeometry, UNIT_SIZE, UNIT_MATERIAL, UNIT_FORMS, eachColor, type GoodsMaterials } from './goods'
+
+/** Per-bin seed. Bins carry stable ids, so hashing one gives that bin a private stream the shared RNG
+ *  never sees — the same trick the pick faces use. */
+function hash(s: string): number {
+  let h = 2166136261 >>> 0
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0 }
+  return h >>> 0
+}
+
 
 /** One rivet-shelving module, built in its local frame like the racking and rotated to run north–south. */
 export class Shelving {
@@ -25,7 +36,7 @@ export class Shelving {
     ic.needsUpdate = true
   }
 
-  constructor(readonly module: StorageModule, bins: Bin[], M: Mats) {
+  constructor(readonly module: StorageModule, bins: Bin[], M: Mats, GM: GoodsMaterials) {
     this.binList = bins
     const { unitW, unitD, unitH, post, shelfT, levels, levelPitch, firstShelfY } = SHELF
     const { rows, baysPerRow: units } = module
@@ -77,20 +88,70 @@ export class Shelving {
     this.bins.userData.resolve = (id: number) => bins[id]
     g.add(this.bins, this.labels.mesh)
 
-    // Contents: polybagged and boxed units sitting in the stocked bins, visible through the hopper and from above.
+    // Contents: the product the bin actually holds, from the same catalogue the rack pick faces use, so a bin
+    // of drinkware holds bottles and a bin of bagged apparel holds pouches. One InstancedMesh per unit form —
+    // a handful of draw calls for the whole module rather than one per bin, and no per-bin geometry.
     const stocked = bins.filter(b => b.sku)
-    const contents = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), stocked.length)
-    const palette = [0xe9e6df, 0xd9c9a8, 0xb89a6a, 0x9fb7c9, 0xc9d3da, 0x6f7f8c]
-    stocked.forEach((bin, i) => {
+    const eaches: { form: UnitForm; x: number; y: number; z: number; sx: number; sy: number; sz: number; ry: number }[] = []
+    for (const bin of stocked) {
+      // THE DRAW COUNT IS LOAD-BEARING. The box contents this replaces took exactly three rng() draws per
+      // stocked bin, and the conveyor, packing, SLAM, rebin, outbound, inbound and the people are all built
+      // downstream of this module — change the count and every one of them re-rolls. The draws are still
+      // taken and discarded; the variation now comes from the per-bin seeded stream.
+      rng(); rng(); rng()
+      const u = unitOf(productForSku(bin.sku!))
+      const roll = mulberry32(hash(bin.id))
       const [x, y, z] = bin.local
+      const [gw, gh, gd] = UNIT_SIZE[u.form]
+      // A SKU can hash into a bin smaller than itself, and the catalogue is assigned by hash, so an oversized
+      // each is scaled down to sit inside the bin rather than clipping through the steel. A suitcase in an
+      // AkroBin is the simplification; a suitcase through the side of one would be a bug.
+      const fit = Math.min(1, (BIN.W * 0.8) / u.w, (BIN.L * 0.8) / u.d, (BIN.H * 0.85) / u.h)
+      const fw = u.w * fit, fh = u.h * fit, fd = u.d * fit
+      const gx = Math.max(1, Math.floor((BIN.W * 0.74) / fw))
+      const gz = Math.max(1, Math.floor((BIN.L * 0.62) / fd))
+      const layers = Math.max(1, Math.min(3, Math.floor((BIN.H * 0.7) / fh)))
       const fill = Math.min(1, bin.qty / 18)
-      const h = BIN.H * (0.25 + 0.55 * fill)
-      const w = BIN.W * (0.6 + rng() * 0.3), d = BIN.L * (0.55 + rng() * 0.3)
-      setInstance(contents, i, x, y - BIN.H / 2 + 0.004 + h / 2, z - bin.faceDir * BIN.L * 0.08, w, h, d, 0, (rng() - 0.5) * 0.3, 0)
-      contents.setColorAt(i, tint.setHex(palette[Math.floor(rng() * palette.length)]))
-    })
-    contents.receiveShadow = true
-    g.add(contents)
+      const want = Math.max(1, Math.round(gx * gz * layers * (0.22 + 0.62 * fill)))
+      let placed = 0
+      // Deepest row first so a partly-filled bin reads as picked-from-the-front, not as floating goods.
+      for (let l = 0; l < layers && placed < want; l++) {
+        for (let ix = 0; ix < gx && placed < want; ix++) {
+          for (let iz = 0; iz < gz && placed < want; iz++) {
+            eaches.push({
+              form: u.form,
+              x: x + (ix - (gx - 1) / 2) * fw + (roll() - 0.5) * 0.008,
+              y: y - BIN.H / 2 + 0.006 + l * fh + fh / 2,
+              z: z - bin.faceDir * BIN.L * 0.06 + (iz - (gz - 1) / 2) * fd,
+              sx: fw / gw, sy: fh / gh, sz: fd / gd,
+              ry: (roll() - 0.5) * 0.5,
+            })
+            placed++
+          }
+        }
+      }
+    }
+    const byForm = new Map<UnitForm, number>()
+    for (const e of eaches) byForm.set(e.form, (byForm.get(e.form) ?? 0) + 1)
+    const contents = new Map<UnitForm, THREE.InstancedMesh>()
+    for (const uf of UNIT_FORMS) {
+      const n = byForm.get(uf) ?? 0
+      if (!n) continue
+      const mesh = new THREE.InstancedMesh(unitGeometry(uf), GM[UNIT_MATERIAL[uf]], n)
+      mesh.receiveShadow = true
+      contents.set(uf, mesh)
+      g.add(mesh)
+    }
+    const cursor = new Map<UnitForm, number>()
+    for (const e of eaches) {
+      const mesh = contents.get(e.form)!
+      const i = cursor.get(e.form) ?? 0
+      cursor.set(e.form, i + 1)
+      setInstance(mesh, i, e.x, e.y, e.z, e.sx, e.sy, e.sz, 0, e.ry, 0)
+      // A shipped case of anything is not one flat colour: cartons fade, film wrinkles, labels differ.
+      mesh.setColorAt(i, eachColor(e.form, i, tint))
+    }
+    for (const mesh of contents.values()) if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
 
     // Colliders in world space, one per row half.
     const half = Math.floor(units / 2)

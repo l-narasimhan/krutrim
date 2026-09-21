@@ -6,7 +6,11 @@ import { Tex } from '../assets'
 import { setInstance, boxAt, canvasTexture } from './util'
 import { LabelField } from './labels'
 import { buildPickFaces } from './pickfaces'
+import { buildGoodsPickFaces } from './pickgoods'
+import type { GoodsMaterials } from './goods'
 import type { Mats } from './mats'
+import { makePalletGeometry } from './goods'
+import type { RackContent } from './rackloads'
 import { rng, pick, randInt } from '../rng'
 
 /** Common corrugated case sizes (m): w × h × d. */
@@ -34,8 +38,13 @@ export class Racking {
   private firstPallet = new Map<Bay, number>()
   private animating = new Set<Bay>()
   private caseColors: Float32Array | null = null
+  /** Set when this module's contents come from a richer source than the built-in random loads. */
+  private detailed: RackContent | null = null
+  /** Face direction per pallet, so LPN labels can ride the extract animation. */
+  private palletFaceDir: Int8Array = new Int8Array(0)
+  private detailOffsets: Float32Array | null = null
 
-  constructor(readonly module: StorageModule, private bays: Bay[], M: Mats) {
+  constructor(readonly module: StorageModule, private bays: Bay[], M: Mats, contents?: RackContent, goods?: GoodsMaterials) {
     const { bayPitch, levels, levelPitch, frameDepth, column, uprightH, beamLen, beamH, beamD, flue } = RACK
     const { rows, baysPerRow: nBays } = module
     const g = this.group
@@ -108,79 +117,68 @@ export class Racking {
     g.add(beams, decks)
 
     // --- Pallets, cases, stretch film, LPN labels. One instanced mesh each.
-    const nPallets = palletCount(bays)
-    this.pallets = new THREE.InstancedMesh(makePalletGeometry(), M.wood, nPallets)
-    this.palletBase = new Float32Array(nPallets * 3)
-    this.caseRange = new Int32Array(nPallets * 2)
-    this.filmOf = new Int32Array(nPallets).fill(-1)
-    this.filmSize = new Float32Array(nPallets * 2)
-    const caseMat = new THREE.MeshStandardMaterial({ ...Tex.cardboard(), roughness: 1, metalness: 0 })
-    const caseBase: number[] = [], caseScale: number[] = []
-    const filmPos: number[] = []
-    let pi = 0
-    for (const bay of bays) {
-      this.firstPallet.set(bay, pi)
-      for (const s of bay.slots) {
-        if (!s.lpn) continue
-        const x = bay.local[0] + (s.pos ? 0.56 : -0.56)
-        const y = s.level === 0 ? 0 : s.level * levelPitch + beamH / 2
-        const z = bay.local[2]
-        this.palletBase.set([x, y, z], pi * 3)
-        // Load: a tie pattern of a random case size, 3–5 layers, slight size jitter so no two loads match.
-        const [cw, ch, cd] = pick(CASES)
-        const nx = Math.max(1, Math.floor(PALLET.W / cw)), nz = Math.max(1, Math.floor(PALLET.L / cd))
-        const layers = randInt(3, s.level === 0 ? 5 : 4)
-        const start = caseBase.length / 3
-        const jitter = 0.97 + rng() * 0.05
-        for (let l = 0; l < layers; l++) for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
-          if (l === layers - 1 && rng() < 0.08) continue // a missing case on the top layer now and then
-          caseBase.push(x - (nx - 1) * cw / 2 + ix * cw, y + PALLET.H + ch / 2 + l * ch, z - (nz - 1) * cd / 2 + iz * cd)
-          caseScale.push(cw * jitter, ch * jitter, cd * jitter)
-        }
-        this.caseRange[pi * 2] = start; this.caseRange[pi * 2 + 1] = caseBase.length / 3 - start
-        const loadH = layers * ch
-        if (s.wrapped) {
-          this.filmOf[pi] = filmPos.length / 3
-          filmPos.push(x, y + PALLET.H + loadH / 2, z)
-          this.filmSize[pi * 2] = nx * cw + 0.02; this.filmSize[pi * 2 + 1] = loadH + 0.01
-        }
-        pi++
+    //
+    // Both branches run the same load walk, because that walk owns the shared RNG draws. The detailed
+    // branch passes collect = false: it builds nothing, but the stream still advances by exactly the
+    // same amount, so FM-1, the conveyors, inbound, people and the order trace are unaffected.
+    const L = walkBuiltInLoads(bays, !contents)
+    const nPallets = contents ? contents.palletCount : L.nPallets
+    this.firstPallet = L.firstPallet
+    this.palletBase = L.palletBase
+    this.caseRange = L.caseRange
+    this.filmOf = L.filmOf
+    this.filmSize = L.filmSize
+    this.caseBase = L.caseBase
+    this.caseScale = L.caseScale
+
+    if (contents) {
+      // The content source owns the real meshes. The placeholders are zero-count so that the shared code
+      // in setLayer and update keeps a single shape regardless of which branch built the contents.
+      this.detailed = contents
+      for (let i = 0; i < nPallets; i++) this.palletBase.set(contents.palletPos(i), i * 3)
+      this.pallets = new THREE.InstancedMesh(makePalletGeometry(), M.wood, 1); this.pallets.count = 0
+      this.cases = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial(), 1); this.cases.count = 0
+      this.film = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), M.film, 1); this.film.count = 0
+      for (const m of contents.meshes) g.add(m)
+    } else {
+      const caseMat = new THREE.MeshStandardMaterial({ ...Tex.cardboard(), roughness: 1, metalness: 0 })
+      const filmPos = L.filmPos
+      this.pallets = new THREE.InstancedMesh(makePalletGeometry(), M.wood, nPallets)
+      this.cases = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), caseMat, Math.max(1, this.caseBase.length / 3))
+      this.cases.count = this.caseBase.length / 3
+      const tint = new THREE.Color()
+      for (let i = 0; i < this.cases.count; i++) {
+        const b = this.caseBase, sc = this.caseScale, col = L.caseColor
+        setInstance(this.cases, i, b[i * 3], b[i * 3 + 1], b[i * 3 + 2], sc[i * 3], sc[i * 3 + 1], sc[i * 3 + 2])
+        this.cases.setColorAt(i, tint.setRGB(col[i * 3], col[i * 3 + 1], col[i * 3 + 2]))
       }
+      this.film = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, PALLET.L + 0.02), M.film, Math.max(1, filmPos.length / 3))
+      this.film.count = filmPos.length / 3
+      for (let i = 0; i < nPallets; i++) {
+        const b = this.palletBase
+        setInstance(this.pallets, i, b[i * 3], b[i * 3 + 1], b[i * 3 + 2])
+        const fi = this.filmOf[i]
+        if (fi >= 0) setInstance(this.film, fi, filmPos[fi * 3], filmPos[fi * 3 + 1], filmPos[fi * 3 + 2], this.filmSize[i * 2], this.filmSize[i * 2 + 1], 1)
+      }
+      this.pallets.castShadow = true; this.pallets.receiveShadow = true
+      this.cases.castShadow = true; this.cases.receiveShadow = true
+      this.film.renderOrder = 2
+      g.add(this.pallets, this.cases, this.film)
     }
-    this.caseBase = new Float32Array(caseBase)
-    this.caseScale = new Float32Array(caseScale)
-    this.cases = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), caseMat, Math.max(1, caseBase.length / 3))
-    this.cases.count = caseBase.length / 3
-    const tint = new THREE.Color()
-    for (let i = 0; i < this.cases.count; i++) {
-      const b = this.caseBase, sc = this.caseScale
-      setInstance(this.cases, i, b[i * 3], b[i * 3 + 1], b[i * 3 + 2], sc[i * 3], sc[i * 3 + 1], sc[i * 3 + 2])
-      this.cases.setColorAt(i, tint.setHSL(0.08, 0.35, 0.42 + rng() * 0.16))
-    }
-    this.film = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, PALLET.L + 0.02), M.film, Math.max(1, filmPos.length / 3))
-    this.film.count = filmPos.length / 3
-    for (let i = 0; i < nPallets; i++) {
-      const b = this.palletBase
-      setInstance(this.pallets, i, b[i * 3], b[i * 3 + 1], b[i * 3 + 2])
-      const fi = this.filmOf[i]
-      if (fi >= 0) setInstance(this.film, fi, filmPos[fi * 3], filmPos[fi * 3 + 1], filmPos[fi * 3 + 2], this.filmSize[i * 2], this.filmSize[i * 2 + 1], 1)
-    }
-    this.pallets.castShadow = true; this.pallets.receiveShadow = true
-    this.cases.castShadow = true; this.cases.receiveShadow = true
-    this.film.renderOrder = 2
-    g.add(this.pallets, this.cases, this.film)
 
     // --- Labels: 4x6" LPN license plates on each load face, barcoded bay placards on the level-C beam,
     // and one label per pick face on the level-B beam.
     const faces = bays.flatMap(b => b.faces)
     this.labels = new LabelField(nPallets + bays.length + faces.length, 0.1, 0.031)
-    pi = 0
+    this.palletFaceDir = new Int8Array(nPallets)
+    let pi = 0
     for (const bay of bays) {
       const ry = bay.faceDir === 1 ? 0 : Math.PI
       for (const s of bay.slots) {
         if (!s.lpn) continue
         const b = this.palletBase
         const zFace = b[pi * 3 + 2] + bay.faceDir * (PALLET.L / 2 + 0.012)
+        this.palletFaceDir[pi] = bay.faceDir
         this.labels.set(pi, s.lpn, b[pi * 3] + 0.25, b[pi * 3 + 1] + PALLET.H + 0.55, zFace, ry, s.sku ?? undefined)
         pi++
       }
@@ -194,7 +192,11 @@ export class Racking {
       setInstance(placards, i, bay.local[0], RACK.pickLevels * levelPitch, zFace - bay.faceDir * 0.002, 1, 1, 1, 0, ry, 0)
     })
     // Pick-level fit-out and face labels.
-    this.faceVolumes = buildPickFaces(faces, M, this.labels, nPallets + bays.length, g)
+    // The pick levels are where the individual product is actually visible, so a module with real goods
+    // gets a fit-out built from the same catalogue: cut cases with eaches standing in them.
+    this.faceVolumes = goods
+      ? buildGoodsPickFaces(faces, M, this.labels, nPallets + bays.length, g, goods)
+      : buildPickFaces(faces, M, this.labels, nPallets + bays.length, g)
     this.labels.commit()
     g.add(this.labels.mesh, placards)
 
@@ -217,6 +219,8 @@ export class Racking {
 
   /** Inventory layer: tint every case by its bay's fill, green full through amber to red near empty; otherwise restore. */
   setLayer(layer: string) {
+    // The detailed content source owns its own meshes and colours.
+    if (this.detailed) { this.detailed.setLayer(layer); return }
     const ic = this.cases.instanceColor!
     if (!this.caseColors) this.caseColors = new Float32Array(ic.array)
     if (layer !== 'inventory') { (ic.array as Float32Array).set(this.caseColors); ic.needsUpdate = true; return }
@@ -242,6 +246,7 @@ export class Racking {
 
   update(dt: number) {
     if (!this.animating.size) return
+    if (this.detailed) { this.updateDetailed(dt); return }
     for (const bay of this.animating) {
       const d = bay.extractTarget - bay.extract
       bay.extract += Math.sign(d) * Math.min(Math.abs(d), dt * 1.6)
@@ -270,19 +275,119 @@ export class Racking {
     this.film.instanceMatrix.needsUpdate = true
     this.labels.mesh.instanceMatrix.needsUpdate = true
   }
+
+  /**
+   * Extract animation for a module whose contents come from a content source. The source re-places its
+   * own meshes; this only has to work out how far each pallet has moved and move the LPN label with it.
+   */
+  private updateDetailed(dt: number) {
+    const c = this.detailed!
+    if (!this.detailOffsets) this.detailOffsets = new Float32Array(c.palletCount)
+    const off = this.detailOffsets
+    for (const bay of this.animating) {
+      const d = bay.extractTarget - bay.extract
+      bay.extract += Math.sign(d) * Math.min(Math.abs(d), dt * 1.6)
+      if (Math.abs(bay.extractTarget - bay.extract) < 1e-3) { bay.extract = bay.extractTarget; this.animating.delete(bay) }
+      const dist = bay.faceDir * 1.3 * easeInOut(bay.extract)
+      const start = this.firstPallet.get(bay)!
+      let n = 0
+      for (const s of bay.slots) if (s.lpn) n++
+      for (let k = 0; k < n; k++) off[start + k] = dist
+    }
+    c.refresh(off)
+    for (let i = 0; i < c.palletCount; i++) {
+      const p = c.palletPos(i)
+      this.labels.place(i, p[0] + 0.25, p[1] + PALLET.H + 0.55,
+        p[2] + this.palletFaceDir[i] * (PALLET.L / 2 + 0.012), this.palletFaceDir[i] === 1 ? 0 : Math.PI)
+    }
+    this.labels.mesh.instanceMatrix.needsUpdate = true
+  }
 }
 
 const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 
-/** GMA 48x40 stringer pallet: 3 stringers, 7 top deck boards, 3 bottom boards. Origin at the bottom centre. */
-export function makePalletGeometry(): THREE.BufferGeometry {
-  const { L, W, H, boardT, stringerH, stringerW } = PALLET
-  const parts: THREE.BufferGeometry[] = []
-  for (const x of [-W / 2 + stringerW / 2, 0, W / 2 - stringerW / 2]) parts.push(boxAt(stringerW, stringerH, L, x, boardT + stringerH / 2, 0))
-  const topN = 7, topW = 0.14
-  for (let i = 0; i < topN; i++) parts.push(boxAt(W, boardT, topW, 0, H - boardT / 2, -L / 2 + topW / 2 + i * ((L - topW) / (topN - 1))))
-  for (const z of [-L / 2 + 0.07, 0, L / 2 - 0.07]) parts.push(boxAt(W, boardT, topW, 0, boardT / 2, z))
-  const g = mergeGeometries(parts, false)!
-  parts.forEach(p => p.dispose())
-  return g
+/** Everything the built-in load walk produces. */
+interface BuiltInLoads {
+  nPallets: number
+  palletBase: Float32Array
+  caseBase: Float32Array
+  caseScale: Float32Array
+  caseRange: Int32Array
+  filmOf: Int32Array
+  filmSize: Float32Array
+  filmPos: Float32Array
+  caseColor: Float32Array
+  firstPallet: Map<Bay, number>
 }
+
+/**
+ * Walk every occupied reserve slot, consuming the built-in load's draws.
+ *
+ * THIS DRAW SEQUENCE IS LOAD-BEARING. Every scene module built after the racking — FM-1 shelving, the
+ * conveyor contents, pack work-in-progress, rebin, outbound and inbound staging, every associate, every
+ * truck and the order trace — draws from the same seeded stream in `src/rng.ts`. Adding, removing or
+ * reordering a single draw in here re-rolls all of it.
+ *
+ * That is why this is one function called by both branches rather than two copies: a module whose
+ * contents come from somewhere else must STILL run this loop (`collect = false`) so the stream advances
+ * by exactly the same amount. Two copies would drift the moment either was edited.
+ */
+function walkBuiltInLoads(bays: Bay[], collect: boolean): BuiltInLoads {
+  const nPallets = palletCount(bays)
+  const palletBase = new Float32Array(nPallets * 3)
+  const caseRange = new Int32Array(nPallets * 2)
+  const filmOf = new Int32Array(nPallets).fill(-1)
+  const filmSize = new Float32Array(nPallets * 2)
+  const caseBase: number[] = [], caseScale: number[] = [], filmPos: number[] = []
+  const firstPallet = new Map<Bay, number>()
+  let pi = 0
+  let nCases = 0   // counted whether or not we collect, because the colour pass below draws per case
+  for (const bay of bays) {
+    firstPallet.set(bay, pi)
+    for (const s of bay.slots) {
+      if (!s.lpn) continue
+      const x = bay.local[0] + (s.pos ? 0.56 : -0.56)
+      const y = s.level === 0 ? 0 : s.level * RACK.levelPitch + RACK.beamH / 2
+      const z = bay.local[2]
+      palletBase.set([x, y, z], pi * 3)
+      // Load: a tie pattern of a random case size, 3–5 layers, slight size jitter so no two loads match.
+      const [cw, ch, cd] = pick(CASES)
+      const nx = Math.max(1, Math.floor(PALLET.W / cw)), nz = Math.max(1, Math.floor(PALLET.L / cd))
+      const layers = randInt(3, s.level === 0 ? 5 : 4)
+      const start = caseBase.length / 3
+      const jitter = 0.97 + rng() * 0.05
+      for (let l = 0; l < layers; l++) for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+        if (l === layers - 1 && rng() < 0.08) continue // a missing case on the top layer now and then
+        nCases++
+        if (collect) {
+          caseBase.push(x - (nx - 1) * cw / 2 + ix * cw, y + PALLET.H + ch / 2 + l * ch, z - (nz - 1) * cd / 2 + iz * cd)
+          caseScale.push(cw * jitter, ch * jitter, cd * jitter)
+        }
+      }
+      caseRange[pi * 2] = start; caseRange[pi * 2 + 1] = caseBase.length / 3 - start
+      const loadH = layers * ch
+      if (s.wrapped) {
+        filmOf[pi] = filmPos.length / 3
+        if (collect) filmPos.push(x, y + PALLET.H + loadH / 2, z)
+        filmSize[pi * 2] = nx * cw + 0.02; filmSize[pi * 2 + 1] = loadH + 0.01
+      }
+      pi++
+    }
+  }
+  // Per-case tint. One draw each, so this has to run for the full case count even when nothing is built.
+  const caseColor = new Float32Array(nCases * 3)
+  const tint = new THREE.Color()
+  for (let i = 0; i < nCases; i++) {
+    const light = 0.42 + rng() * 0.16
+    if (collect) tint.setHSL(0.08, 0.35, light)
+    if (collect) { caseColor[i * 3] = tint.r; caseColor[i * 3 + 1] = tint.g; caseColor[i * 3 + 2] = tint.b }
+  }
+
+  return {
+    nPallets, palletBase, caseRange, filmOf, filmSize, firstPallet, caseColor,
+    caseBase: new Float32Array(caseBase), caseScale: new Float32Array(caseScale), filmPos: new Float32Array(filmPos),
+  }
+}
+
+// The pallet builder lives in goods.ts now; re-exported so inbound, outbound and people keep their import.
+export { makePalletGeometry } from './goods'
