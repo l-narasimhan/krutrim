@@ -1,7 +1,7 @@
 # Krutrim — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
-Updated every time a task changes state. Last update: 2026-09-21 (3.8, 3.9 and 4.2 signed off; 25 DONE).
+Updated every time a task changes state. Last update: 2026-09-21 (phases 2–3 added: milestones 14–20 from SIM-PLAN.md and POC.md; 143 tasks, 25 DONE).
 
 **Status legend**
 
@@ -34,7 +34,15 @@ Updated every time a task changes state. Last update: 2026-09-21 (3.8, 3.9 and 4
 | 11 Console | 5 | 1 | 0 | 0 | 4 | 0 |
 | 12 Polish, performance, delivery | 4 | 0 | 0 | 0 | 0 | 4 |
 | 13 Barcode scanning | 4 | 0 | 0 | 0 | 1 | 3 |
-| **Total** | **82** | **25** | **0** | **0** | **24** | **33** |
+| **Phase 2 — the simulation engine** | | | | | | |
+| 14 Simulation core | 11 | 0 | 0 | 0 | 0 | 11 |
+| 15 Order flow | 12 | 0 | 0 | 0 | 0 | 12 |
+| 16 Metrics, validation, calibration | 8 | 0 | 0 | 0 | 0 | 8 |
+| 17 What-if studio | 9 | 0 | 0 | 0 | 0 | 9 |
+| 18 Live data | 11 | 0 | 0 | 0 | 0 | 11 |
+| 19 Predictive twin | 5 | 0 | 0 | 0 | 0 | 5 |
+| 20 Sim console | 5 | 0 | 0 | 0 | 0 | 5 |
+| **Total** | **143** | **25** | **0** | **0** | **24** | **94** |
 
 ## Next up
 
@@ -196,3 +204,113 @@ Resuming in a new session: read PLAN.md, then this file, then `npm run dev` in t
 | 13.2 | Hardware scanner input: keyboard-wedge listener, print-labels page with real-size labels as PDF | S | TODO | A printed label scanned with a USB scanner flies to that bin | |
 | 13.3 | Camera scanning: BarcodeDetector with ZXing fallback, phone as wireless scanner over WebSocket | M | TODO | A phone scan of a printed label selects the bin in the twin | |
 | 13.4 | Scan-driven data: scans update quantities, last pick / stow, and emit events | S | TODO | Inventory layer changes as scans happen | Bridge to the live-data phase |
+
+## 14 Simulation core
+
+*Milestone done when: a headless Node run advances a deterministic event queue and prints a reproducible event journal.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 14.1 | Sim package skeleton: `src/sim/engine/`, no `three`/DOM imports, lint rule enforcing it | S | TODO | Engine imports nothing from the renderer | |
+| 14.2 | Clock and event queue: integer-ms time, `(time, priority, seq)` ordering, run/pause/step | M | TODO | Two runs of the same seed produce byte-identical journals | |
+| 14.3 | Named RNG forks over `src/rng.ts`, stream positions serialisable | S | TODO | Independent streams; changing one does not shift another | |
+| 14.4 | Resource model: pools, calendars, shifts, breaks, acquisition queues | L | TODO | A shift plan changes headcount over the day | |
+| 14.5 | Activity engine: start/end intervals the view can interpolate | M | TODO | A walking picker is an activity with a real duration | |
+| 14.6 | Travel graph from `src/layout.ts`: shortest path + turn/congestion penalties | L | TODO | Travel time between two faces matches a tape-measure check | |
+| 14.7 | Canonical event schema v1 + JSONL journal writer | M | TODO | Sim and (later) live emit the same shape | |
+| 14.8 | Metric collector + time bucketing | M | TODO | KPIs derive from the journal alone | |
+| 14.9 | State snapshot / restore / fork | L | TODO | Restore mid-run and continue identically | |
+| 14.10 | Headless runner: `npm run sim -- --scenario … --reps …` | M | TODO | Runs in Node, no browser, writes results + journal | |
+| 14.11 | Determinism fingerprint + CI golden test | S | TODO | A refactor that changes results fails CI | |
+
+## 15 Order flow
+
+*Milestone done when: the whole `PLAN.md` process flow runs end to end, driven by orders, with people and vehicles following the work.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 15.1 | Flow units: order, line, tote, carton, parcel, pallet, LPN, trailer, return | M | TODO | Every unit carries an identity and a history | |
+| 15.2 | **SKU master**: a real catalogue — dimensions, weight, case pack, velocity class, storage type | M | TODO | Demand can be generated and picked by SKU, and a SKU means the same thing everywhere | |
+| 15.3 | Process graph: the `PLAN.md` flow as executable nodes and edges | L | TODO | A run traces inbound → outbound with no hand-waving | |
+| 15.4 | Demand model: order files, SKU mix, arrival profiles, carrier mix, cutoffs | M | TODO | A peak day is generated from real-shaped data | |
+| 15.5 | Inbound: arrivals, dock assignment, unload, receive, decant, QC, putaway, replenish | L | TODO | Dock-to-stock is measured, not assumed | |
+| 15.6 | Outbound: pick, both flow modes, rebin, pack, SLAM, sort, stage, load, depart | L | TODO | Both flows are scenario-selectable | |
+| 15.7 | Returns and exception flows: grade, restock, refurbish, liquidate, damageland, ICQA | M | TODO | Side flows run without stalling the main line | |
+| 15.8 | Standards library: every rate, cited, in one file, editable | M | TODO | Each parameter shows its source in the UI | |
+| 15.9 | Work assignment: task queues, dispatch rules, labour allocation | L | TODO | People follow the work instead of scripted loops | |
+| 15.10 | **Scene repaint path**: diff sim state → scene, on change only | L | TODO | A pick empties a bin on screen, live | |
+| 15.11 | Scene migration: `people`, `conveyor`, `packing` etc. read from the sim | L | TODO | Scripted loops deleted, twin still at 60 fps | |
+| 15.12 | Scene migration: remaining modules; delete the last `update(dt)` loop | L | TODO | The frame loop renders state it no longer owns | |
+
+## 16 Metrics, validation, calibration
+
+*Milestone done when: the model reproduces real FC numbers within a stated tolerance, and proves it every run.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 16.1 | Full KPI tree: throughput, flow, labour, quality, service, capacity, cost | L | TODO | The console's placeholder tiles show real numbers | |
+| 16.2 | Invariant checks: conservation, Little's Law, causality | M | TODO | A broken model fails loudly | |
+| 16.3 | Calibration pass: tune standards to hit real anchors (UPH, dock-to-stock, accuracy) | L | TODO | Modelled vs real within a stated tolerance | |
+| 16.4 | Warm-up determination (Welch's) + replication harness + CIs | M | TODO | Every reported KPI carries an error bar | |
+| 16.5 | Validation report: modelled vs published benchmarks, with deviations | M | TODO | A reader can judge the model without reading the code | |
+| 16.6 | Regression suite: golden fingerprints over a scenario set | M | TODO | CI catches a results change | |
+| 16.7 | Run replay: watch a finished run in the twin, scrubbing the timeline | M | TODO | A run can be inspected visually, not just numerically | |
+| 16.8 | Switch off the fabricated surfaces: synthetic event generator, random-walk KPIs, ID-hash sparklines | S | TODO | Every number and event on screen traces back to the journal | |
+
+## 17 What-if studio
+
+*Milestone done when: someone who is not you can build a scenario, run it, and get a defensible comparison.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 17.1 | Scenario schema + baseline/delta resolution + validation | M | TODO | A scenario is a small diffable file | |
+| 17.2 | Experiment runner: sweeps, factorial, replications, common random numbers | L | TODO | Baseline vs variant with paired CIs | |
+| 17.3 | Parameter search for targets ("cheapest staffing holding 99% on-time") | M | TODO | Returns a frontier, not one point | |
+| 17.4 | Background execution: Web Worker (live) and batch (Node) | M | TODO | The UI never blocks on a run | |
+| 17.5 | Scenario panel: seven lever families as typed controls, each with its source | L | TODO | Every `PLAN.md` decision is a controllable lever | |
+| 17.6 | Compare view: KPI deltas with CI bands, small multiples, sensitivity tornado | L | TODO | The answer is readable at a glance | |
+| 17.7 | Explain-this-number: KPI → the events behind it | M | TODO | Any KPI can be audited in two clicks | |
+| 17.8 | Scenario library, save/version/share by deep link | M | TODO | A scenario is a URL | |
+| 17.9 | Fork from live: snapshot → branch → short-horizon run in seconds | L | TODO | The 14:20 staffing question is answerable before 14:25 | |
+
+## 18 Live data
+
+*Milestone done when: the twin renders from a real feed, or a recorded one, through the same path, and says so honestly.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 18.1 | Adapter interface + canonical event ingestion into the sim | M | TODO | Live and sim events are indistinguishable downstream | |
+| 18.2 | Replay adapter over recorded journals | S | TODO | A day replays at any speed | |
+| 18.3 | **StarRocks adapter** (decision 1) — MySQL protocol, snapshot query for fork, polled interval for live | M | TODO | A fork at *now* reproduces the twin's state from the real tables, within a stated tolerance | |
+| 18.4 | MQTT adapter (scanner/edge), Sparkplug-shaped | M | TODO | Scanner events land in the right entity | |
+| 18.5 | OPC UA adapter (conveyor/PLC states) | M | TODO | Conveyor state mirrors the line | |
+| 18.6 | Mapping layer: declarative spec, ID reconciliation, unmapped queue | L | TODO | Nothing is dropped silently | |
+| 18.7 | Contract tests + captured fixtures per source | M | TODO | A source schema change fails CI, not the twin | |
+| 18.8 | Lateness, reordering, dedupe (watermark + idempotency) | M | TODO | A 40 s-late scan lands correctly | |
+| 18.9 | Reconciliation + divergence report + audited drift correction | L | TODO | Twin vs system-of-record disagreement is visible | |
+| 18.10 | Feed health on the console: lag, rate, errors, last-good | M | TODO | The `FEED` chip tells the truth | |
+| 18.11 | Synthetic feed generator from the sim | S | TODO | Full-scale pipeline testing with no real integration | |
+
+## 19 Predictive twin
+
+*Milestone done when: the twin answers operational questions about the next few hours, and alerts before problems land.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 19.1 | Hybrid mode: live state + forward sim, continuously | L | TODO | A rolling prediction window from now | |
+| 19.2 | Short-horizon forecasts: completion, cutoff risk, backlog, dock congestion | L | TODO | Predicted vs actual tracked over time | |
+| 19.3 | Alerting rules on predicted states ("cutoff at risk in 90 min") | M | TODO | Alerts arrive before the miss, not after | |
+| 19.4 | Forecast accuracy tracking | M | TODO | The twin's own predictions are scored | |
+| 19.5 | Prediction overlay in the twin: now vs predicted, side by side | M | TODO | The future is visible in the space | |
+
+## 20 Sim console
+
+*Milestone done when: the sim can be driven from the console without touching code.*
+
+| ID | Task | Size | Status | Done when | Notes |
+|---|---|---|---|---|---|
+| 20.1 | **Mode toggle `LIVE ⇄ SCENARIO`**, with a visual frame change so a scenario can never be mistaken for reality | S | TODO | — | |
+| 20.2 | **Time bar**: sim clock, run/pause/step, speed, fork marker | M | TODO | — | |
+| 20.3 | **ASK**: preset questions for Ops ("Do we make the cutoffs?", "What if I move N pickers?") | M | TODO | — | |
+| 20.4 | **Answer panel**: verdict, assumptions with sources, the flip condition | M | TODO | — | |
+| 20.5 | **Intervention control**: headcount slider on a zone, then re-run | M | TODO | — | |
