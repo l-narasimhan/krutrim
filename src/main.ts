@@ -1,10 +1,14 @@
 import * as THREE from 'three'
 import './style.css'
-import { buildFacility, HALL, RACK, SHELF, MODULES, aisleV, type Entity, type Vec3 } from './facility'
+import { buildFacility, resolveProducts, HALL, RACK, SHELF, MODULES, aisleV, type Entity, type Vec3 } from './facility'
+import { rngDraws } from './rng'
+import { zoneAisle, NON_CARTON } from './zoning'
 import { loadEnvironment } from './assets'
 import { makeMaterials } from './scene/mats'
 import { Building } from './scene/building'
 import { Racking } from './scene/racking'
+import { buildDetailedContent } from './scene/rackloads'
+import { makeGoodsMaterials } from './scene/goods'
 import { Shelving } from './scene/shelving'
 import { Conveyor } from './scene/conveyor'
 import { Packing } from './scene/packing'
@@ -13,6 +17,7 @@ import { Rebin } from './scene/rebin'
 import { Outbound } from './scene/outbound'
 import { Inbound } from './scene/inbound'
 import { People } from './scene/people'
+import { Equipment } from './scene/equipment'
 import { OrderTrace } from './scene/trace'
 import { Layers, LAYER_TITLE, type Layer } from './scene/layers'
 import { CameraRig, type Mode } from './camera'
@@ -54,10 +59,22 @@ function followKey(target: THREE.Vector3) {
 }
 
 const facility = buildFacility()
+// Commodity zoning, then make every displayed product name agree with the SKU it belongs to (and so with
+// the goods in the racks). Both are pure string writes and take no draws from the shared stream.
+zoneAisle(facility, 'RB-04-', NON_CARTON)
+resolveProducts(facility)
 const M = makeMaterials()
 const building = new Building(facility, M)
-const rackings = MODULES.filter(m => m.kind === 'rack').map(m => new Racking(m, facility.baysOf.get(m.id)!, M))
-const shelvings = MODULES.filter(m => m.kind === 'shelf').map(m => new Shelving(m, facility.binsOf.get(m.id)!, M))
+// Every rack module carries real contents: chamfered cases at the catalogue's real dimensions, the product
+// that matches the SKU, and real stretch wrap. The RES-B-only pilot is over — with one module on real goods
+// and the rest on the built-in box loads, the AISLE camera landed on plain cartons and the twin read as a
+// hall of brown boxes. One shared materials object, so this costs one set of maps regardless of module count.
+const goodsMats = makeGoodsMaterials()
+const rackings = MODULES.filter(m => m.kind === 'rack').map(m => {
+  const bays = facility.baysOf.get(m.id)!
+  return new Racking(m, bays, M, buildDetailedContent(bays, goodsMats), goodsMats)
+})
+const shelvings = MODULES.filter(m => m.kind === 'shelf').map(m => new Shelving(m, facility.binsOf.get(m.id)!, M, goodsMats))
 const rackingOf = new Map(rackings.map(r => [r.module.id, r]))
 const conveyor = new Conveyor(M)
 const packing = new Packing(facility.stations.filter(s => s.type === 'single' || s.type === 'multi'), M)
@@ -66,8 +83,9 @@ const rebin = new Rebin(facility.walls, M)
 const outbound = new Outbound(facility.lanes, M)
 const inbound = new Inbound(facility, M)
 const people = new People(facility, M)
-scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group, packing.group, slam.group, rebin.group, outbound.group, inbound.group, people.group)
-const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders, ...packing.colliders, ...slam.colliders, ...rebin.colliders, ...outbound.colliders, ...inbound.colliders]
+const equipment = new Equipment(facility, M)
+scene.add(building.group, ...rackings.map(r => r.group), ...shelvings.map(s => s.group), conveyor.group, packing.group, slam.group, rebin.group, outbound.group, inbound.group, people.group, equipment.group)
+const colliders = [...building.colliders, ...rackings.flatMap(r => r.colliders), ...shelvings.flatMap(s => s.colliders), ...conveyor.colliders, ...packing.colliders, ...slam.colliders, ...rebin.colliders, ...outbound.colliders, ...inbound.colliders, ...equipment.colliders]
 
 // Daylight spilling in at the open doors, and a few pooled lights along the default views.
 for (const d of facility.docks) if (d.doorTarget && Math.abs(d.number % 6) === 3) {
@@ -84,7 +102,7 @@ for (const [x, z] of [[-39, 22], [-33, -20], [-45, -20], [70, -48], [0, 30]]) {
 const rig = new CameraRig(canvas, colliders)
 const highlight = new Highlight(scene)
 const ui = new Console(facility)
-const picker = new Picker(canvas, [people.volumes, people.truckVolumes, ...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, packing.volumes, inbound.volumes, slam.volumes, rebin.volumes, outbound.volumes, building.zoneVolumes], () => rig.camera)
+const picker = new Picker(canvas, [people.volumes, people.truckVolumes, equipment.volumes, ...rackings.map(r => r.faceVolumes), ...rackings.map(r => r.volumes), ...shelvings.map(s => s.bins), building.dockVolumes, packing.volumes, inbound.volumes, slam.volumes, rebin.volumes, outbound.volumes, building.zoneVolumes], () => rig.camera)
 
 // Scans from the floor: the face loses a unit, the stream logs it, and a beep plays if the scan is near the camera.
 let audio: AudioContext | null = null
@@ -141,7 +159,7 @@ function select(e: Entity | null) {
 }
 
 function walkTo(e: Entity) {
-  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : e.kind === 'station' ? 1.1 : e.kind === 'wall' ? 1.2 : e.kind === 'slam' ? 3 : e.kind === 'lane' ? (e.role === 'sort' ? 2 : 10) : e.kind === 'cage' ? 6 : e.kind === 'person' ? 1.6 : e.kind === 'truck' ? 3 : 0
+  const off = e.kind === 'bay' || e.kind === 'face' ? RACK.aisle / 2 + RACK.frameDepth / 2 : e.kind === 'bin' ? SHELF.aisle / 2 + SHELF.unitD / 2 + 0.2 : e.kind === 'dock' ? 4 : e.kind === 'station' ? 1.1 : e.kind === 'wall' ? 1.2 : e.kind === 'slam' ? 3 : e.kind === 'lane' ? (e.role === 'sort' ? 2 : 10) : e.kind === 'cage' ? 6 : e.kind === 'person' ? 1.6 : e.kind === 'truck' ? 3 : e.kind === 'ladder' ? 2.0 : 0
   const pos: Vec3 = [e.center[0] + e.face[0] * off, 1.7, e.center[2] + e.face[2] * off]
   // Face the entity: yaw 0 looks toward -Z, so look back along the face vector.
   const yaw = Math.atan2(e.face[0], e.face[2])
@@ -149,7 +167,7 @@ function walkTo(e: Entity) {
 }
 /** Standoff by kind: bins sit on a 1.4 m cart aisle so the camera stays inside it; docks read best from a
  *  few metres back; zones from far enough to see the whole outline but never from above the roof. */
-const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'station' ? 4.5 : e.kind === 'wall' ? 5 : e.kind === 'slam' ? 10 : e.kind === 'lane' ? (e.role === 'sort' ? 5 : 16) : e.kind === 'cage' ? 14 : e.kind === 'person' ? 3.2 : e.kind === 'truck' ? 6 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
+const standoff = (e: Entity) => e.kind === 'bin' ? 0.7 : e.kind === 'face' ? 2.4 : e.kind === 'dock' ? 12 : e.kind === 'station' ? 4.5 : e.kind === 'wall' ? 5 : e.kind === 'slam' ? 10 : e.kind === 'lane' ? (e.role === 'sort' ? 5 : 16) : e.kind === 'cage' ? 14 : e.kind === 'person' ? 3.2 : e.kind === 'truck' ? 6 : e.kind === 'ladder' ? 3.0 : e.kind === 'zone' ? THREE.MathUtils.clamp(Math.max(e.size[0], e.size[2]) * 0.6, 10, 42) : undefined
 const flyTo = (e: Entity) => rig.frame(e.center, e.size, e.face, standoff(e))
 const toggleDoor = (e: Entity) => { if (e.kind === 'dock') { e.doorTarget = e.doorTarget ? 0 : 1; e.state = e.doorTarget ? (e.trailerId ? e.state : 'EMPTY') : 'CLOSED'; building.animateDoor(e); ui.select(e); syncDoorButton() } }
 
@@ -266,6 +284,11 @@ function frame(now: number) {
   ui.update(dt, { fps, calls: renderer.info.render.calls, tris: renderer.info.render.triangles })
   requestAnimationFrame(frame)
 }
+
+// The whole twin is generated from one seeded RNG stream in a fixed order, so the number of draws taken
+// by the time the last scene module is built is a fingerprint of the entire facility. Exposed so the
+// RES-B detailed-contents path can be proven not to have shifted anything downstream of it.
+;(window as unknown as { __rngDraws: number }).__rngDraws = rngDraws()
 
 loadEnvironment(renderer).then(env => {
   scene.environment = env

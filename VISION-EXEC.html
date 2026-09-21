@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Krutrim — Vision</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Self-contained: no external fonts, no scripts, no images. Prints to a clean Letter/A4 PDF. */
+  :root {
+    --ink:      #12161c;
+    --body:     #2c3540;
+    --dim:      #66757f;
+    --rule:     #dfe5ec;
+    --rule-soft:#eef2f6;
+    --accent:   #0e87ab;
+    --accent-lt:#38d6ff;
+    --wash:     #f4f8fb;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--body);
+    font-family: var(--sans);
+    font-size: 10.5pt;
+    line-height: 1.5;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  .sheet {
+    max-width: 7.4in;
+    margin: 0 auto;
+    padding: 0.55in 0.5in 0.45in;
+  }
+
+  /* ---- Masthead ---- */
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .mark {
+    width: 13px; height: 13px;
+    border: 2.5px solid var(--accent-lt);
+    transform: rotate(45deg);
+    flex: 0 0 auto;
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13pt;
+    letter-spacing: 0.16em;
+    color: var(--ink);
+  }
+  .sub {
+    font-family: var(--mono);
+    font-size: 7.5pt;
+    letter-spacing: 0.14em;
+    color: var(--dim);
+  }
+  .masthead .right { margin-left: auto; text-align: right; }
+
+  /* ---- Headline ---- */
+  h1 {
+    font-size: 25pt;
+    line-height: 1.14;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 22px 0 4px;
+    font-weight: 700;
+  }
+  h1 .accent { color: var(--accent); }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 8pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 20px;
+  }
+
+  .lede {
+    font-size: 11pt;
+    color: var(--body);
+    margin: 14px 0 0;
+    max-width: 6.5in;
+  }
+  .lede strong { color: var(--ink); }
+
+  /* ---- Section headings ---- */
+  h2 {
+    font-family: var(--mono);
+    font-size: 8pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+    margin: 26px 0 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* ---- Tables ---- */
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 7.5pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+  }
+  tbody tr { border-bottom: 1px solid var(--rule-soft); }
+  tbody tr:last-child { border-bottom: 0; }
+  .arrow { color: var(--accent); font-weight: 700; padding-right: 10px; width: 1em; }
+
+  /* Footnote under a table: supporting detail that must not compete with the table. */
+  .note {
+    font-size: 8.8pt;
+    line-height: 1.45;
+    color: var(--dim);
+    margin: 9px 0 0;
+    padding-left: 11px;
+    border-left: 2px solid var(--rule);
+  }
+
+  /* "today" column reads as the status quo: muted, struck-through in spirit */
+  .before { color: var(--dim); width: 47%; }
+  .after  { color: var(--ink); font-weight: 500; }
+
+  /* ---- Path stages ---- */
+  .stage { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--rule-soft); }
+  .stage:last-child { border-bottom: 0; }
+  .stage .n {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
+  .stage .what { flex: 1; }
+  .stage .what b { color: var(--ink); }
+  .stage .what span { color: var(--dim); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 6.8pt;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2.5px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  .badge.done { background: var(--accent); color: #fff; }
+  .badge.next { background: var(--ink); color: #fff; }
+  .badge.plan { background: var(--wash); color: var(--dim); border: 1px solid var(--rule); }
+
+  /* ---- Trust callout ---- */
+  .callout {
+    background: var(--wash);
+    border-left: 3px solid var(--accent);
+    padding: 14px 16px;
+    margin-top: 4px;
+  }
+  .callout p { margin: 0; color: var(--body); }
+  .callout p + p { margin-top: 9px; }
+  .pull {
+    font-size: 12.5pt;
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-top: 10px !important;
+  }
+
+  /* ---- Ask ---- */
+  ol.ask { margin: 0; padding-left: 0; list-style: none; counter-reset: ask; }
+  ol.ask li {
+    counter-increment: ask;
+    position: relative;
+    padding: 7px 0 7px 30px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  ol.ask li:last-child { border-bottom: 0; }
+  ol.ask li::before {
+    content: counter(ask);
+    position: absolute; left: 0; top: 7px;
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  ol.ask b { color: var(--ink); }
+
+  /* ---- Footer ---- */
+  footer {
+    margin-top: 26px;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 7.2pt;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    display: flex;
+    gap: 14px;
+  }
+  footer .r { margin-left: auto; }
+
+  /* ---- Print ---- */
+  @page { size: Letter; margin: 0.45in; }
+  @media print {
+    /* Tightened so the whole vision lands on ONE page. Screen keeps the roomier rhythm. */
+    body { font-size: 9.5pt; line-height: 1.38; }
+    .sheet { max-width: none; margin: 0; padding: 0; }
+    h1 { font-size: 19.5pt; margin: 9px 0 3px; }
+    .kicker { margin-top: 10px; }
+    .lede { margin-top: 8px; }
+    h2 { margin: 11px 0 6px; padding-bottom: 4px; }
+    td, th { padding: 4.5px 10px 4.5px 0; }
+    .note { font-size: 8pt; line-height: 1.38; margin-top: 6px; padding-left: 10px; }
+    .stage { padding: 5px 0; }
+    .callout { padding: 10px 13px; margin-top: 2px; }
+    .callout p + p { margin-top: 6px; }
+    .pull { font-size: 11pt; margin-top: 7px !important; }
+    ol.ask li { padding: 4px 0 4px 30px; }
+    ol.ask li::before { top: 4px; }
+    footer { margin-top: 11px; padding-top: 6px; }
+    .stage, tr, .callout, ol.ask li { break-inside: avoid; page-break-inside: avoid; }
+    .callout { background: #f6fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .badge.done, .badge.next { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @media screen {
+    body { background: #eef1f4; }
+    .sheet { background: #fff; box-shadow: 0 1px 3px rgba(18,22,28,.10), 0 10px 30px rgba(18,22,28,.07); margin: 28px auto; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="masthead">
+    <span class="mark"></span>
+    <span class="wordmark">KRUTRIM</span>
+    <span class="sub">SUPPLY CHAIN DIGITAL TWIN</span>
+    <span class="right sub">VISION &nbsp;·&nbsp; V1.0</span>
+  </div>
+
+  <div class="kicker">The north star</div>
+  <h1>Answers in minutes.<br><span class="accent">Show your work.</span></h1>
+
+  <p class="lede">
+    Today, supply chain decisions wait for analysis — and the analysis arrives too late to change the outcome.
+    When a number does arrive, nobody can see where it came from, so it gets second-guessed or ignored.
+    <strong>Krutrim is a working digital twin of a fulfillment center: a live, running model of the operation.</strong>
+    It is built and it runs today. Right now it shows the building. The next stage makes it answer questions about the building.
+  </p>
+
+  <h2>What changes</h2>
+  <table>
+    <thead>
+      <tr><th>The decision today</th><th>With Krutrim</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="before">&ldquo;Do we make the 16:00 carrier cutoff?&rdquo; — a meeting next week</td>
+        <td class="after">Answered in minutes, with the assumptions attached</td>
+      </tr>
+      <tr>
+        <td class="before">Staffing planned on industry averages</td>
+        <td class="after">Staffing planned on <b>your</b> actual workforce — each picker modelled from your own scan history, not an industry average</td>
+      </tr>
+      <tr>
+        <td class="before">Policy changes trialled on the live floor, at real risk</td>
+        <td class="after">Trialled on the twin first, at no risk</td>
+      </tr>
+      <tr>
+        <td class="before">Automation business cases built on vendor claims</td>
+        <td class="after">Built on a simulated baseline of your own operation</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">
+    The workforce model is built from your own pick-transaction data — every associate modelled individually,
+    including how they slow down, batch work and make mistakes. That is why the answer is yours and not a
+    benchmark&rsquo;s.
+  </p>
+
+  <h2>The path</h2>
+
+  <div class="stage">
+    <span class="n">1</span>
+    <span class="what"><b>See it.</b> <span>A real twin of the building — real dimensions, real products, real equipment.</span></span>
+    <span class="badge done">Built</span>
+  </div>
+  <div class="stage">
+    <span class="n">2</span>
+    <span class="what"><b>Run it.</b> <span>A simulation of the operation: orders, labour, flow. Answers <i>what if</i>.</span></span>
+    <span class="badge next">Next</span>
+  </div>
+  <div class="stage">
+    <span class="n">3</span>
+    <span class="what"><b>Live it.</b> <span>Connected to the real feed. Answers <i>what if, starting from right now</i>.</span></span>
+    <span class="badge plan">Planned</span>
+  </div>
+  <div class="stage">
+    <span class="n">4</span>
+    <span class="what"><b>Trust it.</b> <span>Validated against your real numbers. Then it recommends. Then, where it has earned it, it acts.</span></span>
+    <span class="badge plan">Planned</span>
+  </div>
+
+  <h2>Why it can be trusted</h2>
+  <div class="callout">
+    <p>
+      Most AI hands you an answer you have to take on faith. Krutrim hands you the answer <b>and its reasoning</b> —
+      which inputs it used, which assumptions it made, and what would have to change for the answer to flip.
+    </p>
+    <p class="pull">Speed gets you asked. Showing your work gets you trusted.</p>
+  </div>
+
+  <h2>What we&rsquo;re asking for</h2>
+  <ol class="ask">
+    <li><b>Fund stages 2 and 3</b> — the simulation engine and the live feed.</li>
+    <li><b>Name one real data source</b> to connect to.</li>
+    <li><b>Give us the first decision</b> you want answered in minutes.</li>
+  </ol>
+
+  <footer>
+    <span>KRUTRIM · VISION V1.0 · 21 SEP 2026</span>
+    <span class="r">REVISED AS EACH STAGE COMPLETES</span>
+  </footer>
+
+</div>
+</body>
+</html>

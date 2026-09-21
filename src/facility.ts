@@ -1,6 +1,7 @@
 // The facility: every entity in the full hall with a real location ID, position and size, generated from the
 // approved layout in layout.ts. 1 unit = 1 metre. Every dimension is an industry standard or a real product.
-import { rng, rand, randInt, pick, chance } from './rng'
+import { rng, rand, randInt, pick, chance, mulberry32 } from './rng'
+import { productForSku } from './catalog'
 import {
   HALL as HALL_SPEC, HALL_X0, HALL_Z0, DOOR, MODULES, AREAS, RACK as RACK_LAYOUT, RACK_ROW_PITCH, SHELF as SHELF_LAYOUT, SHELF_ROW_PITCH,
   doors as layoutDoors, PACK, PACK_ZONES, PUT_WALLS, SLAM_STATIONS, RECEIVE, QC_BENCHES, type StorageModule, type Area,
@@ -135,10 +136,40 @@ export interface Person extends Base {
 /** A forklift or reach truck, driven by one of the drivers. */
 export interface Truck extends Base { kind: 'truck'; type: 'reach' | 'counterbalance'; driver: string; task: string; carrying: boolean; hours: number; battery: number }
 export interface Zone extends Base { kind: 'zone'; name: string; group: Area['group']; note?: string; level?: 1; area: Area }
-export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane | Cage | Person | Truck
+export interface Ladder extends Base {
+  kind: 'ladder'
+  type: 'rolling' | 'step'
+  module: string
+  aisle: string
+  /** Rolling ladder: platform height. Step ladder: overall height. */
+  platformH: number
+  /** Model rotation about Y. The ladder climbs toward its own local -z, so this is chosen to put that end
+   *  against the rack it is parked beside. Kept separate from `face`, which is the camera approach direction
+   *  and runs down the aisle. */
+  yaw: number
+  steps: number
+  capacityKg: number
+  lastUsed: string
+}
+export type Entity = Bay | Bin | PickFace | Dock | Zone | Station | PutWall | Slam | Lane | Cage | Person | Truck | Ladder
+
+/**
+ * Point every named product at the one its SKU actually maps to.
+ *
+ * The generator pairs a random SKU with a random product name drawn independently, so before this the
+ * string on a pick face had no relation to the goods the same SKU builds. Both come from the same catalogue
+ * now, so the inspector, the tooltip and a picker's task text all agree with what is on the shelf.
+ *
+ * This is a pure string write — it must NOT replace the `pick(PRODUCTS)` calls in the generator, which own
+ * one shared-stream draw each. Removing those would re-roll the rest of the twin.
+ */
+export function resolveProducts(f: Facility) {
+  for (const face of f.faces) if (face.sku) face.product = productForSku(face.sku).name
+  for (const bin of f.bins) if (bin.sku) bin.product = productForSku(bin.sku).name
+}
 
 export interface Facility {
-  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]; cages: Cage[]; people: Person[]; trucks: Truck[]
+  bays: Bay[]; bins: Bin[]; faces: PickFace[]; docks: Dock[]; zones: Zone[]; stations: Station[]; walls: PutWall[]; slams: Slam[]; lanes: Lane[]; cages: Cage[]; people: Person[]; trucks: Truck[]; ladders: Ladder[]
   byId: Map<string, Entity>
   baysOf: Map<string, Bay[]>; binsOf: Map<string, Bin[]>
 }
@@ -161,7 +192,7 @@ const ago = (maxH: number) => {
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 export function buildFacility(): Facility {
-  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = [], cages: Cage[] = [], people: Person[] = [], trucks: Truck[] = []
+  const bays: Bay[] = [], bins: Bin[] = [], faces: PickFace[] = [], docks: Dock[] = [], zones: Zone[] = [], stations: Station[] = [], walls: PutWall[] = [], slams: Slam[] = [], lanes: Lane[] = [], cages: Cage[] = [], people: Person[] = [], trucks: Truck[] = [], ladders: Ladder[] = []
   const byId = new Map<string, Entity>()
   const baysOf = new Map<string, Bay[]>(), binsOf = new Map<string, Bin[]>()
 
@@ -307,8 +338,55 @@ export function buildFacility(): Facility {
     trucks.push(t); byId.set(t.id, t)
   }
 
-  void rand
-  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, cages, people, trucks, byId, baysOf, binsOf }
+  // ---- Aisle ladders --------------------------------------------------------------------------------------
+  // A pick face at level B is 1.75 m up; with a case on it a picker is reaching ~2.05 m several hundred times
+  // a shift, which is what a rolling ladder is for. The pick module's shelves run to 1.92 m and its cart
+  // aisles are only 1.4 m wide, so those take a fibreglass step ladder instead.
+  //
+  // Drawn from its OWN stream. The shared one is consumed in a fixed order by everything built after the
+  // storage modules, so a single draw taken here would re-roll FM-1, the conveyors, inbound, the people and
+  // the order trace.
+  const lrng = mulberry32(0x1add3e)
+  let nRolling = 0, nStep = 0
+  for (const m of MODULES) {
+    const rack = m.kind === 'rack'
+    const aisles = m.rows + 1
+    for (let a = 1; a <= aisles; a++) {
+      const vAisle = aisleV(m, a)
+      const u = m.d * (0.16 + lrng() * 0.68)
+      const side = lrng() < 0.5 ? -1 : 1
+      // Parked against one rack face and out of the pick path, as an unused ladder actually sits.
+      const v = rack ? vAisle + side * (RACK.aisle / 2 - 0.60) : vAisle + side * 0.22
+      const [x, , z] = toWorld(m, u, 0, v)
+      const aisleNo = pad(a, 2)
+      const id = rack ? `LDR-R${moduleCode(m).replace('R', '')}-${aisleNo}` : `LDR-S-${aisleNo}`
+      const mins = Math.floor(2 + lrng() * 340)
+      // Approach along the aisle, not across it: a 3.5 m rack aisle and a 1.4 m cart aisle both put a
+      // cross-aisle camera standoff inside the racking.
+      const along = lrng() < 0.5 ? -1 : 1
+      const l: Ladder = {
+        kind: 'ladder',
+        id: rack ? `${id}-${side > 0 ? 'E' : 'W'}` : id,
+        type: rack ? 'rolling' : 'step',
+        module: m.id,
+        aisle: `AISLE ${aisleNo}`,
+        platformH: rack ? 1.52 : 1.83,
+        steps: rack ? 6 : 5,
+        capacityKg: 136,     // 300 lb, the standard duty rating for both
+        lastUsed: mins < 60 ? `${mins} min ago` : `${Math.floor(mins / 60)} h ${mins % 60} min ago`,
+        center: [x, rack ? 1.0 : 0.95, z],
+        size: rack ? [0.76, 2.32, 1.14] : [0.58, 1.83, 1.02],
+        // Local -z is the climbing direction, so the high end lands against the rack on this side.
+        yaw: -side * Math.PI / 2,
+        face: [0, 0, along],
+      }
+      ladders.push(l); byId.set(l.id, l)
+      if (rack) nRolling++; else nStep++
+    }
+  }
+  void nRolling; void nStep; void rand
+
+  return { bays, bins, faces, docks, zones, stations, walls, slams, lanes, cages, people, trucks, ladders, byId, baysOf, binsOf }
 }
 
 /** Rack bays: RA-07-012 is module RES-A, aisle 07, bay 012. Odd bays on the west face of the aisle, even on the east.

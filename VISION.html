@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Krutrim — Vision (full)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Self-contained: no external fonts, no scripts, no images. Prints to a clean multi-page PDF. */
+  :root {
+    --ink:      #12161c;
+    --body:     #2c3540;
+    --dim:      #66757f;
+    --rule:     #dfe5ec;
+    --rule-soft:#eef2f6;
+    --accent:   #0e87ab;
+    --accent-lt:#38d6ff;
+    --wash:     #f4f8fb;
+    --warnwash: #fdf8f0;
+    --warnline: #d9a441;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: #fff; color: var(--body);
+    font-family: var(--sans); font-size: 10.5pt; line-height: 1.55;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+  .sheet { max-width: 7.4in; margin: 0 auto; padding: 0.55in 0.5in 0.5in; }
+
+  /* ---- Masthead ---- */
+  .masthead { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+  .mark { width: 13px; height: 13px; border: 2.5px solid var(--accent-lt); transform: rotate(45deg); flex: 0 0 auto; }
+  .wordmark { font-family: var(--mono); font-weight: 700; font-size: 13pt; letter-spacing: 0.16em; color: var(--ink); }
+  .sub { font-family: var(--mono); font-size: 7.5pt; letter-spacing: 0.14em; color: var(--dim); }
+  .masthead .right { margin-left: auto; text-align: right; }
+
+  /* ---- Headings ---- */
+  h1 { font-size: 24pt; line-height: 1.14; letter-spacing: -0.015em; color: var(--ink); margin: 22px 0 6px; font-weight: 700; }
+  .kicker { font-family: var(--mono); font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-top: 20px; }
+  h2 {
+    font-family: var(--mono); font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dim); font-weight: 600; margin: 26px 0 10px; padding-bottom: 5px; border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 10.5pt; color: var(--ink); margin: 16px 0 4px; font-weight: 700; }
+
+  .lead { font-size: 13pt; line-height: 1.4; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; margin: 14px 0 8px; }
+  p { margin: 0 0 10px; }
+  b, strong { color: var(--ink); }
+
+  /* ---- Tables ---- */
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 10px; }
+  td, th { text-align: left; vertical-align: top; padding: 7px 10px 7px 0; }
+  thead th {
+    font-family: var(--mono); font-size: 7.5pt; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--dim); font-weight: 600; border-bottom: 1px solid var(--rule); padding-bottom: 6px;
+  }
+  tbody tr { border-bottom: 1px solid var(--rule-soft); }
+  tbody tr:last-child { border-bottom: 0; }
+  .num { font-family: var(--mono); font-weight: 700; color: var(--accent); width: 2.1em; padding-right: 4px; }
+  .qv { color: var(--dim); font-style: italic; width: 32%; }
+  .st { color: var(--dim); width: 27%; }
+
+  .badge {
+    font-family: var(--mono); font-size: 6.8pt; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2.5px 7px; border-radius: 2px; white-space: nowrap;
+  }
+  .badge.done { background: var(--accent); color: #fff; }
+  .badge.next { background: var(--ink); color: #fff; }
+  .badge.plan { background: var(--wash); color: var(--dim); border: 1px solid var(--rule); }
+
+  /* ---- Numbered gate ---- */
+  ol.gate { margin: 0 0 10px; padding-left: 0; list-style: none; counter-reset: g; }
+  ol.gate li { counter-increment: g; position: relative; padding: 6px 0 6px 28px; }
+  ol.gate li::before {
+    content: counter(g); position: absolute; left: 0; top: 6px;
+    font-family: var(--mono); font-size: 8.5pt; font-weight: 700; color: var(--accent);
+  }
+
+  /* ---- Agent anatomy list ---- */
+  ol.parts { margin: 0 0 10px; padding-left: 0; list-style: none; counter-reset: p; }
+  ol.parts li { counter-increment: p; position: relative; padding: 5px 0 5px 28px; }
+  ol.parts li::before {
+    content: counter(p); position: absolute; left: 0; top: 5px;
+    font-family: var(--mono); font-size: 8.5pt; font-weight: 700; color: var(--accent);
+  }
+
+  /* ---- Callouts ---- */
+  .callout { background: var(--wash); border-left: 3px solid var(--accent); padding: 13px 15px; margin: 10px 0; }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 8px; }
+  .callout.caution { background: var(--warnwash); border-left-color: var(--warnline); }
+  .pull { font-size: 12pt; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; }
+
+  ul.plain { margin: 0 0 10px; padding-left: 17px; }
+  ul.plain li { padding: 2px 0; }
+
+  footer {
+    margin-top: 26px; padding-top: 9px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 7.2pt; letter-spacing: 0.1em; color: var(--dim);
+    display: flex; gap: 14px;
+  }
+  footer .r { margin-left: auto; }
+
+  /* ---- Print ---- */
+  @page { size: Letter; margin: 0.55in; }
+  @media print {
+    body { font-size: 9.9pt; line-height: 1.5; }
+    .sheet { max-width: none; margin: 0; padding: 0; }
+    h1 { font-size: 21pt; margin-top: 14px; }
+    h2 { margin: 17px 0 8px; }
+    .lead { font-size: 12pt; }
+    table, tr, .callout, ol.gate li, ol.parts li, ul.plain li { break-inside: avoid; page-break-inside: avoid; }
+    h2, h3 { break-after: avoid; page-break-after: avoid; }
+    .callout, .badge.done, .badge.next, .mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    footer { margin-top: 18px; }
+  }
+  @media screen {
+    body { background: #eef1f4; }
+    .sheet { background: #fff; box-shadow: 0 1px 3px rgba(18,22,28,.10), 0 10px 30px rgba(18,22,28,.07); margin: 28px auto; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="masthead">
+    <span class="mark"></span>
+    <span class="wordmark">KRUTRIM</span>
+    <span class="sub">SUPPLY CHAIN DIGITAL TWIN</span>
+    <span class="right sub">VISION &nbsp;·&nbsp; FULL &nbsp;·&nbsp; V1.1</span>
+  </div>
+
+  <div class="kicker">Vision</div>
+  <p class="lead">
+    Krutrim becomes the operating model of the supply chain: a validated, live, predictive twin that moves
+    from <i>showing</i> the network to <i>running</i> it.
+  </p>
+  <p>
+    Today it shows a real fulfillment centre. That is rung one of six. The end goal — AI transformation, an
+    autonomous supply chain — is rung six, and every rung needs the one below it.
+  </p>
+
+  <h2>The ladder</h2>
+  <table>
+    <thead>
+      <tr><th class="num">#</th><th>Rung</th><th class="qv">Question it answers</th><th class="st">State</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="num">1</td><td><b>Visual twin</b> — real geometry, real dimensions, real conventions</td><td class="qv">What does it look like?</td><td class="st"><span class="badge done">Built</span></td></tr>
+      <tr><td class="num">2</td><td><b>Simulated twin</b> — deterministic engine, calibrated rates, order flow</td><td class="qv">What happens if…?</td><td class="st"><span class="badge next">Planned</span></td></tr>
+      <tr><td class="num">3</td><td><b>Live twin</b> — feed from WMS / scanners / conveyors; fork from <i>now</i></td><td class="qv">What is happening right now?</td><td class="st"><span class="badge plan">Planned</span></td></tr>
+      <tr><td class="num">4</td><td><b>Predictive twin</b> — forecast demand, labour, congestion, exceptions</td><td class="qv">What will happen?</td><td class="st">—</td></tr>
+      <tr><td class="num">5</td><td><b>Prescriptive twin</b> — ranked actions, expected value, error bars</td><td class="qv">What should we do?</td><td class="st">—</td></tr>
+      <tr><td class="num">6</td><td><b>Autonomous twin</b> — bounded write-back, human on the exception</td><td class="qv">Do it.</td><td class="st">—</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <p><b>The pivotal design decision:</b> rungs 2 and 3 must be <i>one engine</i>, not two products.</p>
+    <p>
+      "What if" from an empty building is a study. "What if" from 14:20 with the carrier cutoff at 16:00 is an
+      operating decision. Only the second one is a twin, and only the second one earns its keep.
+    </p>
+  </div>
+
+  <h2>The credibility gate</h2>
+  <p>Autonomy is earned, not built. Four things must be true before the twin may <i>recommend</i>, and truer before it may <i>act</i>:</p>
+  <ol class="gate">
+    <li><b>Real</b> — real dimensions, real conventions, real products. <i>Done.</i></li>
+    <li><b>Validated</b> — every rate named, cited and tunable; simulated output checked against real operations, with error bars, on named KPIs.</li>
+    <li><b>Grounded</b> — running on a live feed, with reconciliation and a drift report that is allowed to say "I am wrong".</li>
+    <li><b>Accountable</b> — every recommendation traceable to its inputs and assumptions; every action audited.</li>
+  </ol>
+  <p class="pull">Skip 2 and you have a plausible cartoon. Skip 3 and you are optimising a fiction — confidently.</p>
+
+  <h2>Steps</h2>
+  <table>
+    <thead><tr><th class="num">#</th><th>Step</th><th>Gate to pass before moving on</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td><b>Finish the visual twin</b> — realism passes</td><td>It reads as a real building to someone who works in one</td></tr>
+      <tr><td class="num">2</td><td><b>Build the sim core</b> — clock, scheduler, process graph, engineered standards</td><td>Deterministic, replayable, fingerprint-stable</td></tr>
+      <tr><td class="num">3</td><td><b>Validate</b> — reconcile 3 named KPIs against real operations</td><td>Within a stated tolerance, or the model is fixed</td></tr>
+      <tr><td class="num">4</td><td><b>Go live</b> — ingest a real feed, fork-from-live, drift report</td><td>Feed health visible; divergence measured, not hidden</td></tr>
+      <tr><td class="num">5</td><td><b>Predict</b> — forecast from twin state + the event journal</td><td>Beats the naive baseline out of sample</td></tr>
+      <tr><td class="num">6</td><td><b>Recommend, then act</b> — ranked actions, human-approved first</td><td>Recommendation hit rate tracked; only then bounded write-back</td></tr>
+    </tbody>
+  </table>
+
+  <h2>The workforce layer — pickers and packers as agents</h2>
+  <p>
+    Today every associate runs a fixed script forever. That has to become an <b>agent</b>: something that
+    perceives, decides and acts the way a person does.
+  </p>
+  <p>
+    This matters more than it sounds, because <b>humans are where all the variance in an FC comes from</b>. A
+    model that runs at a benchmark rate simulates an average that does not exist. Real throughput is a
+    distribution, and every useful workforce question lives inside that distribution.
+  </p>
+
+  <h3>An agent is five things</h3>
+  <ol class="parts">
+    <li><b>Bounded perception</b> — it knows its task, its cart, what is in front of it. <i>Not</i> the global state. This is what makes information a variable you can improve, rather than a given.</li>
+    <li><b>Policy</b> — how it decides: batching, pick sequence, when to ask for help, whether to follow the SOP.</li>
+    <li><b>Traits</b> — persistent per badge: base speed, accuracy, experience, ramp state, fatigue curve. So A-07 is reliably your fast picker, across runs.</li>
+    <li><b>State</b> — fatigue, break need, cart fill, position.</li>
+    <li><b>Actions</b> — walk, scan, pick, place, shortcut, escalate.</li>
+  </ol>
+
+  <h3>The ladder — do not build the top first</h3>
+  <table>
+    <thead><tr><th class="num">L</th><th>What it is</th><th>What it unlocks</th></tr></thead>
+    <tbody>
+      <tr><td class="num">L1</td><td>Scripted loop <i>(today)</i></td><td>Nothing. It is animation.</td></tr>
+      <tr><td class="num">L2</td><td><b>State-driven</b> — takes real work from the sim, travels the travel graph</td><td>Correct flows</td></tr>
+      <tr><td class="num">L3</td><td><b>Trait-driven</b> — per-associate rates, accuracy, fatigue, ramp</td><td><b>Most workforce questions</b></td></tr>
+      <tr><td class="num">L4</td><td><b>Cognitive</b> — chooses <i>how</i> to work, not just what</td><td><b>Policy problems</b></td></tr>
+      <tr><td class="num">L5</td><td><b>Learned</b> — policy fitted to your real pick transactions</td><td>Simulates <i>your</i> people</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why L4 is worth reaching</h3>
+  <p><i>"We're three pickers down at 14:20 — do we make the cutoff?"</i></p>
+  <ul class="plain">
+    <li><b>L3 answers:</b> "No. Fourteen minutes short."</li>
+    <li><b>L4 answers:</b> "No — but the miss is not capacity. The SOP says batch six totes; your fast pickers batch twelve. Change the batch rule and you make it by nine minutes."</li>
+  </ul>
+  <p>L3 finds capacity problems. <b>L4 finds policy problems</b> — which is where the money usually is, and which no dashboard can find.</p>
+
+  <div class="callout caution">
+    <p><b>Two cautions.</b></p>
+    <p>
+      <b>Do not over-build.</b> A distribution of rates (L3) captures most of the value. Full cognitive agents
+      are only worth their cost for policy questions. Sequence it.
+    </p>
+    <p>
+      <b>Frame it as capacity, not surveillance.</b> A "digital twin of your workforce" reads as monitoring
+      individuals. Keep traits statistical and aggregate, at badge level not person level. This is the single
+      most likely way for the project to be killed politically, and it costs nothing to avoid.
+    </p>
+  </div>
+
+  <p><b>Two consequences beyond labour planning:</b></p>
+  <ul class="plain">
+    <li><b>It makes fork-from-live real.</b> You fork with <i>these</i> people, at <i>this</i> fatigue, at 14:20 — not with an abstract resource pool.</li>
+    <li><b>It makes automation ROI computable.</b> You cannot claim an AMR beats a human until you can simulate the human. The agent layer is the baseline every automation business case is measured against.</li>
+  </ul>
+
+  <h2>The flywheel — where the AI actually comes from</h2>
+  <p>The twin is not only a model. It is a <b>data factory</b>:</p>
+  <ul class="plain">
+    <li>The sim generates labelled scenarios that do not exist in history — peak, breakdown, reconfiguration, the counterfactual you would never dare run on the real network.</li>
+    <li>Live operation supplies ground truth to score those scenarios against.</li>
+    <li>The event journal supplies structured training data with causality already attached.</li>
+  </ul>
+  <p>
+    Models trained on the twin get deployed, and their decisions return as new data.
+    <b>That compounding loop — not any single model — is the AI transformation.</b> It is also the reason the
+    journal and determinism in the sim core are not plumbing: they are the training set.
+  </p>
+
+  <h2>Non-goals</h2>
+  <ul class="plain">
+    <li>No write-back before validation.</li>
+    <li>No autonomy without an audit trail and a human on the exception.</li>
+    <li>No general-purpose simulation product. One network, validated, until told otherwise.</li>
+  </ul>
+
+  <h2>Decisions needed</h2>
+  <ol class="gate">
+    <li>Is there a <b>real feed</b> to target — a named WMS/WES, or aspirational?</li>
+    <li>Who creates scenarios — <b>you, a planning team, or customers?</b></li>
+    <li><b>Design-time or operational</b> emphasis first?</li>
+  </ol>
+
+  <footer>
+    <span>KRUTRIM · VISION (FULL) V1.1 · 21 SEP 2026</span>
+    <span class="r">REVISED AS EACH STAGE COMPLETES</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Fulcrum Twin — a real-time 3D digital twin of a fulfillment center (Three.js, 1 unit = 1 metre)",
+  "description": "Krutrim — a real-time 3D digital twin of a fulfillment center (Three.js, 1 unit = 1 metre)",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

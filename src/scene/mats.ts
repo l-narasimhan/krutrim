@@ -37,6 +37,8 @@ export function makeMaterials() {
     fixtureHousing: std({ color: 0xd8dadc, roughness: 0.5, metalness: 0.6 }),
     fixtureLens: std({ color: 0xffffff, emissive: 0xfff2dc, emissiveIntensity: 4, roughness: 0.3 }),
     rubber: std({ color: 0x141414, roughness: 0.95 }),
+    // Safety-yellow painted steel, as rolling ladders and step ladders are finished.
+    ladder: std({ color: 0xd9a521, roughness: 0.52, metalness: 0.35 }),
     trailerSide: std({ color: 0xdadcdf, roughness: 0.35, metalness: 0.7 }),
     trailerFrame: std({ color: 0x2b2d30, roughness: 0.6, metalness: 0.6 }),
     tyre: std({ color: 0x151515, roughness: 0.9 }),
