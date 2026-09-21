@@ -1,10 +1,11 @@
-# Fulcrum Twin — simulation engine master plan
+# Krutrim — simulation engine master plan
 
 What it takes to turn the twin from a scene that shows a fulfillment centre into an engine that *runs* one:
 what-if scenarios anyone can build, and a live feed the twin renders and reasons from.
 This is the build plan for phases 2 and 3 of [PLAN.md](PLAN.md). Task-level progress stays in [TASKS.md](TASKS.md).
 
-Status: draft for your approval, 2026-09-21. Nothing here gets built until a task is picked and approved.
+Status: **approved 2026-09-21.** The six decisions in §12 are answered, and the layering rule in §3 is fixed
+architecture. Nothing here gets built until a task is picked and approved.
 
 ---
 
@@ -130,6 +131,42 @@ Two seams make this cheaper than it looks:
   engine in embryo.
 
 ---
+
+### The layering rule — infra, sim, view
+
+Fixed architecture, agreed 2026-09-21. It is a second axis to the inversion above: not only does the sim own
+state, **the sim does not own the building either.**
+
+```
+view  →  sim  →  infra          one way only
+```
+
+**Infra** is *what exists*: the building, racking, shelving, conveyors, docks, doors, equipment. A spatial and
+capability model — entities, positions, capacities, location IDs, the travel graph, what each device can do.
+**Infra never imports sim. Infra must run without the sim. Infra is timeless** — it has no clock. Two clocks is
+the fastest way to lose determinism.
+
+**Sim** is *what is happening, and why*: orders, waves, labour, queues, flow, exceptions. It reads infra,
+attaches state keyed by location ID, and drives infra through commands. It owns time. **Sim must run headless,
+without the renderer.**
+
+**View** is *what it looks like*: renders infra plus sim state and interpolates between events.
+
+On real objects:
+
+| Object | Infra owns | Sim owns |
+|---|---|---|
+| Dock door | The door and its open/close animation | When to open it |
+| Conveyor | The belt and its motion | What rides it, and where it is going |
+| Pick face | The deck, the bin, the capacity | The quantity on it |
+| Associate | Nothing — the body is a view | The agent |
+
+**Where today's code sits.** `scene/people.ts`, `scene/conveyor.ts` and `scene/trace.ts` are not one layer but
+three at once: they render, they decide, and they hold state. They are the migration surface. The animation
+stays; the decisions move out to sim; the state moves to sim and is read back by the view.
+
+**Enforcement.** The dependency direction is a lint rule and a review gate, not a convention. A scene module
+that imports from the sim directory is a bug, and a sim module that imports Three.js is a bug.
 
 ## 4. The engine
 
@@ -345,6 +382,12 @@ Tuesday afternoon, and the reason §4.10 exists.
 
 ## 7. Live data
 
+**The source is decided: StarRocks** (decision 1). It is the concrete target for `src/adapters/` — a real,
+accessible, read-only analytics store reached over the MySQL protocol. Everything below is unchanged in shape;
+"WMS/WES" now reads as "the tables in StarRocks that mirror it". Two consequences worth carrying down: live
+mode is **pull** (a consistent query, on an interval, or stream loading added later), and §7.3's ID
+reconciliation question is now a specific one — **whether StarRocks carries the twin's location IDs.**
+
 ### 7.1 Framing — ISO 23247
 
 The live half of this plan maps cleanly onto ISO 23247's four domains, which is worth using deliberately so
@@ -507,7 +550,7 @@ Sizes: **S** under an hour · **M** a few hours · **L** a day or more. All **TO
 |---|---|---|---|
 | 18.1 | Adapter interface + canonical event ingestion into the sim | M | Live and sim events are indistinguishable downstream |
 | 18.2 | Replay adapter over recorded journals | S | A day replays at any speed |
-| 18.3 | REST/WebSocket adapter (WMS/WES) | M | Pull and push both work, with fixtures |
+| 18.3 | **StarRocks adapter** (decision 1) — MySQL protocol, snapshot query for fork, polled interval for live | M | A fork at *now* reproduces the twin's state from the real tables, within a stated tolerance |
 | 18.4 | MQTT adapter (scanner/edge), Sparkplug-shaped | M | Scanner events land in the right entity |
 | 18.5 | OPC UA adapter (conveyor/PLC states) | M | Conveyor state mirrors the line |
 | 18.6 | Mapping layer: declarative spec, ID reconciliation, unmapped queue | L | Nothing is dropped silently |
@@ -558,22 +601,53 @@ Sizes: **S** under an hour · **M** a few hours · **L** a day or more. All **TO
 
 ---
 
-## 12. Decisions needed from you
+## 12. Decisions (settled 2026-09-21)
 
-These change the plan materially, so they should be settled before milestone 17 rather than during it.
+These were settled before milestone 17, as the plan required. Each one now binds the design.
 
-1. **Is there a real feed to target?** A named WMS/WES, or aspirational? This sets whether 18.3–18.5 are
-   built against a real system, a spec, or only fixtures.
-2. **Who are "people" creating scenarios?** You alone, a planning team, or customers? It decides whether the
-   studio is a power tool or needs guard-rails, presets and plain-language output.
-3. **Design-time or operational emphasis?** Cold-start studies (capex, layout) and fork-from-live (this
-   afternoon) are the same engine but different UX priorities. Which earns its keep first?
-4. **Is a cost model in scope?** Labour cost per unit turns "faster" into "worth it", but needs wage and
-   overhead inputs.
-5. **One FC or a network?** The engine allows multi-site later; the plan assumes one building until told
-   otherwise.
-6. **Does anything write back?** This plan says read-only, always. Confirm, because it is the one decision
-   that changes the safety and security story completely.
+**1. The feed is StarRocks.** A real, accessible, read-only source. Live state arrives as a consistent query —
+that is the fork point. StarRocks is pull, not push, so live mode polls on an interval or adds stream loading
+later. It also holds the pick transactions that calibrate the workforce layer (§ the L3 traits), so the
+workforce ground truth and the live feed come from the same place. **Open question, needed when 18.3 is
+built: does StarRocks carry the twin's location IDs (`RA-07-012-B`)?** If yes the mapping layer is a join; if
+not it is a translation table, which is a task of its own.
+
+**2. Scenarios are created by Ops, Design and Product** — broad internal access. Three audiences, one engine:
+Ops asks *"do we make the cutoff, who do I move"*; Design asks *"what if we add a mezzanine"*; Product asks
+*"which policy costs less"*. Three front doors, one sim — which is the layering rule paying off. Two
+consequences: **guard-rails are mandatory** (the model must refuse out-of-range questions rather than answer
+confidently), and **"show your work" is the safety mechanism**, not a feature — it is what lets a
+non-modeller see they have pushed the model somewhere it has not been validated.
+
+**3. Operational first.** Fork-from-live earns its keep first: *"We're behind at 14:20 — do we make the 16:00
+cutoff?"* Note this **does not skip the simulation** — fork-from-live *is* a simulation. Live data says where
+you are; the answer requires running forward from there. Design-time studies then come almost free: the same
+engine seeded from an empty building instead of live state, with a different front door. **The trap to avoid:**
+building the live ingestion *without* the engine gives a real-time dashboard, not a twin. The feed is an input
+to the engine, never a product of its own.
+
+**4. Full cost-to-serve** — labour, facilities, equipment, carrier. Three consequences. **Finance becomes a
+stakeholder, not a reviewer**: the moment the twin emits cost-to-serve, someone in finance owns those rates,
+and an unsigned allocation method discredits the tool on its first contested number — that argument will be
+about costing, not modelling. **Every rate is a defensible assumption** with a named source and effective
+date. So the cost model is a **pluggable, versioned layer** of named rate tables, separable from the engine, so
+a contested rate is swapped without touching the model. This is also what makes Design's questions answerable
+in money, and what turns the automation ROI case from a claim into a number.
+
+**5. A full network, starting with one site.** The engine is network-shaped from day one even while it runs one
+building. Three seams to build now because they are cheap now and expensive later: a **site dimension** in
+every entity, metric and scenario key even when it holds one value; **namespaced location IDs**
+(`SITE2:RA-07-012-B`, which compounds with decision 1); and **hierarchical routing** — the fine intra-site
+travel graph, with the coarse inter-site seam left open. Everything else network-shaped — transshipment,
+multi-leg transport, network inventory positioning — is milestone 20+ and must not leak into 14–16.
+Decisions 4 and 5 together are the strong product: cost-to-serve including the transport leg is what answers
+*"should this order have shipped from site 2?"*
+
+**6. Read-only now; bounded write-back later, gated.** Nothing writes back until it has earned it through the
+step 6 gate — validation, then tracked recommendation hit rate, then bounded write-back. Rung 6 stays on the
+roadmap. Keeping the loop open for now is also what keeps StarRocks a data source rather than a system the
+twin can damage, and it is the decision that keeps the safety and security story simple while the model is
+still earning trust.
 
 ---
 
