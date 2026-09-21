@@ -68,6 +68,9 @@ each held a single white block. Real goods now cover every rack module and every
 | **2 — Order flow** | A real simulation: trailers arrive and unload, QC pass or reject, putaway, pick waves, rebin, pack, SLAM, carrier sort, outbound, returns. Every KPI, event and inspector number derives from the sim. People and vehicles follow the work instead of loops. | new milestones 14 – 16 |
 | **3 — Live twin** | Adapter so the scene renders from a real feed (WMS export, MQTT, REST) instead of the sim. Replay, heatmaps, alerting rules, scan-driven updates from real scanners. | new milestones 17 – 18 |
 
+Phases 2 and 3 have a build plan of their own: **[SIM-PLAN.md](SIM-PLAN.md)** — the simulation engine, what-if
+scenarios and the live-data adapter, refining milestones 14–18 into 14–19. Draft for approval, 2026-09-21.
+
 ## Area program (agreed 2026-09-17: the FC must be big and have every real area)
 
 Inbound → storage → outbound, with QC, putaway and support areas modelled as real zones, each labelled and inspectable.
