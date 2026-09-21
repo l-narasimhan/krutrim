@@ -15,9 +15,13 @@ and it runs today. Right now it shows the building. The next stage makes it answ
 | The decision today | With Krutrim |
 |---|---|
 | *"Do we make the 16:00 carrier cutoff?"* — a meeting next week | Answered in minutes, with the assumptions attached |
-| Staffing planned on industry averages | Staffing planned on **your** workforce's actual performance |
+| Staffing planned on industry averages | Staffing planned on **your** actual workforce — each picker modelled from your own scan history, not an industry average |
 | Policy changes trialled on the live floor, at real risk | Trialled on the twin first, at no risk |
 | Automation business cases built on vendor claims | Built on a simulated baseline of your own operation |
+
+*The workforce model is built from your own pick-transaction data — every associate modelled individually,
+including how they slow down, batch work and make mistakes. That is why the answer is yours and not a
+benchmark's.*
 
 ---
 

@@ -54,6 +54,61 @@ Skip 2 and you have a plausible cartoon. Skip 3 and you are optimising a fiction
 
 ---
 
+## The workforce layer — pickers and packers as agents
+
+Today every associate runs a fixed script forever. That has to become an **agent**: something that perceives,
+decides and acts the way a person does.
+
+This matters more than it sounds, because **humans are where all the variance in an FC comes from**. A model
+that runs at a benchmark rate simulates an average that does not exist. Real throughput is a distribution, and
+every useful workforce question lives inside that distribution.
+
+**An agent is five things:**
+
+1. **Bounded perception** — it knows its task, its cart, what is in front of it. *Not* the global state. This
+   is what makes information a variable you can improve, rather than a given.
+2. **Policy** — how it decides: batching, pick sequence, when to ask for help, whether to follow the SOP.
+3. **Traits** — persistent per badge: base speed, accuracy, experience, ramp state, fatigue curve. So A-07 is
+   reliably your fast picker, across runs.
+4. **State** — fatigue, break need, cart fill, position.
+5. **Actions** — walk, scan, pick, place, shortcut, escalate.
+
+**The ladder — do not build the top first:**
+
+| Level | What it is | What it unlocks |
+|---|---|---|
+| L1 | Scripted loop *(today)* | Nothing. It is animation. |
+| L2 | **State-driven** — takes real work from the sim, travels the travel graph | Correct flows |
+| L3 | **Trait-driven** — per-associate rates, accuracy, fatigue, ramp | **Most workforce questions** |
+| L4 | **Cognitive** — chooses *how* to work, not just what | **Policy problems** |
+| L5 | **Learned** — policy fitted to your real pick transactions | Simulates *your* people |
+
+**Why L4 is worth reaching.** "We're three pickers down at 14:20 — do we make the cutoff?"
+
+- L3 answers: *"No. Fourteen minutes short."*
+- L4 answers: *"No — but the miss is not capacity. The SOP says batch six totes; your fast pickers batch
+  twelve. Change the batch rule and you make it by nine minutes."*
+
+L3 finds capacity problems. **L4 finds policy problems** — which is where the money usually is, and which no
+dashboard can find.
+
+**Two cautions.**
+
+- **Do not over-build.** A distribution of rates (L3) captures most of the value. Full cognitive agents are
+  only worth their cost for policy questions. Sequence it.
+- **Frame it as capacity, not surveillance.** A "digital twin of your workforce" reads as monitoring
+  individuals. Keep traits statistical and aggregate, at badge level not person level. This is the single most
+  likely way for the project to be killed politically, and it costs nothing to avoid.
+
+Two consequences beyond labour planning:
+
+- **It makes fork-from-live real.** You fork with *these* people, at *this* fatigue, at 14:20 — not with an
+  abstract resource pool.
+- **It makes automation ROI computable.** You cannot claim an AMR beats a human until you can simulate the
+  human. The agent layer is the baseline every automation business case is measured against.
+
+---
+
 ## The flywheel — where the AI actually comes from
 
 The twin is not only a model. It is a **data factory**:
