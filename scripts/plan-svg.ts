@@ -139,13 +139,13 @@ function svg(): string {
   const s = summary()
   const inside = AREAS.filter(a => a.level !== 1)
   const mezz = AREAS.filter(a => a.level === 1)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan of the Fulcrum Twin hall: ${fmt(HALL.w)} by ${fmt(HALL.d)} metres, inbound docks on the north wall, outbound docks on the south wall, reserve racking in the middle, pack and sort south of it, returns north-east, offices and cafeteria on the south-west mezzanine, trailer yards north and south." font-family="'IBM Plex Sans', system-ui, sans-serif" style="color:#1c1f24">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan of the Krutrim hall: ${fmt(HALL.w)} by ${fmt(HALL.d)} metres, inbound docks on the north wall, outbound docks on the south wall, reserve racking in the middle, pack and sort south of it, returns north-east, offices and cafeteria on the south-west mezzanine, trailer yards north and south." font-family="'IBM Plex Sans', system-ui, sans-serif" style="color:#1c1f24">
 <defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d3382b"/></marker>
   <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="${HUE.support}" stroke-width="1.2" opacity="0.6"/></pattern>
 </defs>
 <rect width="${W}" height="${H}" fill="#fbfaf6"/>
-<text x="${px(EXT.x0 + 8)}" y="${pz(EXT.z0 + 10)}" font-size="16" font-weight="700">Fulcrum Twin, hall plan for approval, task 0.2</text>
+<text x="${px(EXT.x0 + 8)}" y="${pz(EXT.z0 + 10)}" font-size="16" font-weight="700">Krutrim, hall plan for approval, task 0.2</text>
 <text x="${px(EXT.x0 + 8)}" y="${pz(EXT.z0 + 15)}" font-size="10" opacity="0.8">800 × 600 ft (${fmt(HALL.w)} × ${fmt(HALL.d)} m, ${s.hall.sqft.toLocaleString('en-US')} sq ft) on a 50 ft column grid · ${s.doors.total} dock doors · flow-through, inbound north to outbound south · 1 px = 0.25 m</text>
 <g id="yard">${yard()}</g>
 <rect id="hall-bg" x="${px(HALL_X0)}" y="${pz(HALL_Z0)}" width="${(HALL.w * S).toFixed(1)}" height="${(HALL.d * S).toFixed(1)}" fill="#ffffff" stroke="currentColor" stroke-width="2.5"/>
@@ -174,7 +174,7 @@ function page(svgText: string): string {
   }).join('')
   // Inline the diagram, dropping its standalone background so it takes the page's tokens.
   const inline = svgText.replace(/<rect width="\d+" height="\d+" fill="#fbfaf6"\/>/, '').replace(' style="color:#1c1f24"', ' class="plan"')
-  return `<title>Fulcrum Hall Plan</title>
+  return `<title>Krutrim Hall Plan</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root{--bg:#fbfaf6;--panel:#ffffff;--ink:#1c1f24;--muted:#5d646d;--line:#d9d6cc;--accent:#d3382b;--plan-bg:#ffffff;--hall:#ffffff}
@@ -209,7 +209,7 @@ details{margin:8px 0}
 summary{cursor:pointer;font-weight:600}
 </style>
 <div class="wrap">
-<h1>Fulcrum Twin hall plan</h1>
+<h1>Krutrim hall plan</h1>
 <p class="lede">Task 0.2, first deliverable. Every area in the agreed program placed at real dimensions inside an 800 × 600 ft flow-through building. Nothing in 3D changes until you approve this plan; the geometry will be generated from the same numbers.</p>
 
 <div class="facts">

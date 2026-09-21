@@ -1,4 +1,4 @@
-# Fulcrum Twin — task tracker
+# Krutrim — task tracker
 
 Source of truth for progress. Decisions, the realism rule and the process flow live in [PLAN.md](PLAN.md).
 Updated every time a task changes state. Last update: 2026-09-21 (3.8 and 3.9 added in REVIEW, 4.2 to REVIEW; the real-goods rollout out of the RES-B pilot).

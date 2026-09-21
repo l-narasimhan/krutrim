@@ -1,4 +1,4 @@
-# Fulcrum Twin — Fulfillment Center Digital Twin
+# Krutrim — Fulfillment Center Digital Twin
 
 Decisions, the realism standard and the process flow. Progress is tracked task by task in [TASKS.md](TASKS.md).
 Nothing gets built until a task is picked from that list and approved.

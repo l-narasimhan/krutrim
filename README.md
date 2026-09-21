@@ -1,4 +1,4 @@
-# Fulcrum Twin — fulfillment center digital twin
+# Krutrim — fulfillment center digital twin
 
 A real-time 3D digital twin of an e-commerce fulfillment center, built as a plain Three.js app inside a
 spatial-ops console. 1 unit = 1 metre; every object is a real product at its real dimensions.
